@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "ejemplo-portico-01",
+  "name": "Pórtico de ejemplo",
+  "createdAt": "2026-11-21T00:00:00.000Z",
+  "modifiedAt": "2026-11-21T00:00:00.000Z",
+  "model": {
+    "nodes": [
+      { "id": "N1", "label": "N1", "x": 0, "y": 0 },
+      { "id": "N2", "label": "N2", "x": 0, "y": 3 },
+      { "id": "N3", "label": "N3", "x": 8, "y": 3 },
+      { "id": "N4", "label": "N4", "x": 8, "y": 0 }
+    ],
+    "bars": [
+      { "id": "B1", "label": "B1", "startId": "N1", "endId": "N2" },
+      { "id": "B2", "label": "B2", "startId": "N2", "endId": "N3" },
+      { "id": "B3", "label": "B3", "startId": "N3", "endId": "N4" }
+    ],
+    "supports": [
+      { "nodeId": "N1", "kind": "pinned" },
+      { "nodeId": "N4", "kind": "roller", "surfaceAngle": 0.5235987755982988 }
+    ],
+    "loads": [
+      { "id": "C1", "kind": "nodal", "nodeId": "N2", "force": { "x": 1200, "y": -3000 }, "moment": 0 },
+      { "id": "C2", "kind": "point", "barId": "B2", "s": 3, "frame": "local", "force": { "x": 1000, "y": -5000 } },
+      { "id": "C3", "kind": "distributed", "barId": "B2", "s0": 0, "s1": 8, "frame": "global",
+        "profile": "linear", "q0": { "x": 0, "y": -10000 }, "q1": { "x": 0, "y": -30000 } },
+      { "id": "C4", "kind": "distributed", "barId": "B1", "s0": 0.5, "s1": 2, "frame": "local",
+        "profile": "uniform", "q0": { "x": 0, "y": 1000 }, "q1": { "x": 0, "y": 1000 } }
+    ],
+    "nextNode": 5,
+    "nextBar": 4,
+    "nextLoad": 5
+  },
+  "view": { "grid": true, "dimensions": "selection" }
+}

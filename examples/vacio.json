@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ejemplo-vacio-01",
+  "name": "Proyecto vacío",
+  "createdAt": "2026-11-21T00:00:00.000Z",
+  "modifiedAt": "2026-11-21T00:00:00.000Z",
+  "model": {
+    "nodes": [],
+    "bars": [],
+    "supports": [],
+    "loads": [],
+    "nextNode": 1,
+    "nextBar": 1,
+    "nextLoad": 1
+  },
+  "view": { "grid": true, "dimensions": "hidden" }
+}
