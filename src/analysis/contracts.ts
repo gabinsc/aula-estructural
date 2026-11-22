@@ -36,6 +36,8 @@ export interface AnalysisInput {
   readonly loadCase: AnalysisCase
   readonly revision?: string
   readonly includeTrace?: boolean
+  /** Bloqueos de giro independientes de los apoyos traslacionales del sistema primario temporal. */
+  readonly rotationLocks?: readonly string[]
 }
 
 export interface DofReference {
@@ -87,6 +89,7 @@ export interface PreparedModel {
   readonly bars: readonly PreparedBar[]
   readonly loads: readonly PreparedLoad[]
   readonly supports: ReadonlyMap<string, NodalSupport>
+  readonly rotationLocks: ReadonlySet<string>
   readonly components: readonly PreparedComponent[]
   readonly dofs: readonly DofReference[]
   readonly dofByNode: ReadonlyMap<string, NodeDofs>

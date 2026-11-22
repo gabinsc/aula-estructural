@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import type { AnalysisDiagnostic, AnalysisResult } from '../../analysis'
 import type { StructuralLoad } from '../../domain/load'
-import type { Selection } from '../../domain/structure'
+import type { Selection, Structure } from '../../domain/structure'
 import { Icon } from '../Icon'
+import { AcademicHelp } from '../academic/AcademicHelp'
 import { MemberResults } from './MemberResults'
 import { ResultTable, resultNumber } from './ResultTable'
 import { TraceView } from './TraceView'
@@ -11,6 +12,9 @@ import type { AnalysisState } from './useAnalysis'
 import type { SectionCut } from '../../modeler/results/diagramFields'
 import type { DiagramModel } from '../../modeler/results/diagramModel'
 import { CombinedDiagrams } from './CombinedDiagrams'
+import { MethodResults } from './MethodResults'
+import { InfluenceResults } from './InfluenceResults'
+import type { MovingPosition } from './InfluenceResults'
 
 type Success = Extract<AnalysisResult, { ok: true }>
 
@@ -81,9 +85,14 @@ function AnalysisSummary({ result }: { result: Success }) {
 }
 
 export function ResultsPanel({ state, missing, loads, selected, setSelected, learning, selection, select, close, cut, onCut,
-  combined, labels, expanded, toggleExpanded, onShowCut }: {
+  combined, labels, expanded, toggleExpanded, onShowCut, model, methodControls, influenceMode, mobilePosition, onMobile }: {
   state: AnalysisState
   missing: readonly AnalysisDiagnostic[]
+  model: Structure
+  methodControls: ReactNode
+  influenceMode: boolean
+  mobilePosition: MovingPosition
+  onMobile: (position: MovingPosition) => void
   loads: readonly StructuralLoad[]
   selected: readonly string[] | null
   setSelected: (ids: readonly string[] | null) => void
@@ -116,11 +125,23 @@ export function ResultsPanel({ state, missing, loads, selected, setSelected, lea
       </div>
     </header>
     <div className="results-body">
-      <CaseControls loads={loads} selected={selected} setSelected={setSelected} />
-      {state.status === 'stale' && <p className="result-hint">Cambió el modelo físico o el caso activo. Ejecuta Analizar estructura para actualizar los valores.</p>}
-      {state.status === 'idle' && <p className="result-hint">Ejecuta Analizar estructura para obtener desplazamientos, reacciones y esfuerzos.</p>}
+      {methodControls}
+      {learning && <AcademicHelp title="Cómo interpretar los resultados">
+        <p>ux y uy son desplazamientos en los ejes globales. θz es el giro en radianes y es positivo en sentido antihorario.</p>
+        <p>En la convención local de la barra, N positivo indica tracción. V positivo actúa hacia −y′ sobre la cara de corte del tramo inicial y M positivo es antihorario en esa misma cara. Un salto de V puede corresponder a una fuerza puntual o a una reacción.</p>
+        <p>Revisa el equilibrio de fuerzas y momentos y contrasta los valores con una referencia independiente. Un mecanismo permite movimiento sin rigidez suficiente. Revisa apoyos, conectividad y el tipo resistente de las barras.</p>
+      </AcademicHelp>}
+      {!influenceMode && <CaseControls loads={loads} selected={selected} setSelected={setSelected} />}
+      {state.status === 'stale' && <p className="result-hint">Cambió el modelo físico, el caso activo o la configuración del método. Ejecuta Analizar estructura para actualizar los valores.</p>}
+      {state.status === 'idle' && <p className="result-hint">{influenceMode
+        ? 'Ejecuta Analizar estructura para calcular la respuesta al paso de la carga móvil.'
+        : 'Ejecuta Analizar estructura para obtener desplazamientos, reacciones y esfuerzos.'}</p>}
       <Diagnostics diagnostics={diagnostics} select={select} />
-      {result && <>
+      {result && state.status === 'current' && state.detail?.kind === 'influence' &&
+        <InfluenceResults key={result.revision} detail={state.detail} learning={learning} select={select} position={mobilePosition} onPosition={onMobile} />}
+      {result && !influenceMode && <>
+        {state.status === 'current' && state.detail && state.detail.kind !== 'influence' && <MethodResults key={result.revision} detail={state.detail} model={model}
+          activeIds={result.loads.map(load => load.id)} learning={learning} select={select} selectedBar={bar} />}
         {combined && <CombinedDiagrams diagram={combined} selectedId={bar} cut={cut} onCut={onCut} labels={labels} learning={learning} />}
         <AnalysisSummary result={result} />
         <section className="result-section">

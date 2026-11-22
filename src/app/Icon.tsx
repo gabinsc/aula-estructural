@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 const shapes = {
   analysis: <><path d="M4 20h16M5 4v16m3-5 4-5 4 2 4-7"/><path d="M16 5h4v4"/></>,
+  design: <><path d="M5 4h14v4h-5v8h5v4H5v-4h5V8H5z"/><path d="M3 12h4m10 0h4"/></>,
   load: <path d="M12 3v13m-4-4 4 4 4-4M4 20h16" />,
   support: <path d="M12 4l7 12H5L12 4ZM3 19h18m-13 0-2 2m7-2-2 2m7-2-2 2" />,
   brand: <><path d="M3 18 12 4l9 14ZM7.4 11h9.2M12 4v14"/><circle cx="12" cy="4" r="1.5"/><circle cx="3" cy="18" r="1.5"/><circle cx="21" cy="18" r="1.5"/></>,

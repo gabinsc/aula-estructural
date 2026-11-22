@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { NodeOverlap } from '../../domain/nodeOverlaps'
 import type { LoadDefinition } from '../../domain/load'
 import type { Selection, Structure } from '../../domain/structure'
@@ -25,9 +26,11 @@ interface LayerProps {
 
 export function StructureLayer({ model, selection, hover, camera, viewport, preview, movePreview, overlaps, activeLoadId, loadDraft,
   showGeometry, showLoads }: LayerProps) {
-  const positions = new Map(model.nodes.map(node => [node.id, worldToScreen(node, camera, viewport)]))
-  const selectedIds = new Set(selection.map(item => item.id))
-  const overlappingIds = new Set(overlaps.flatMap(group => group.map(node => node.id)))
+  const { nodes } = model
+  const positions = useMemo(() => new Map(nodes.map(node => [node.id, worldToScreen(node, camera, viewport)])),
+    [nodes, camera, viewport])
+  const selectedIds = useMemo(() => new Set(selection.map(item => item.id)), [selection])
+  const overlappingIds = useMemo(() => new Set(overlaps.flatMap(group => group.map(node => node.id))), [overlaps])
   const movedPositions = new Map<string, Point>()
   if (movePreview) {
     const ids = new Set(movePreview.nodeIds)

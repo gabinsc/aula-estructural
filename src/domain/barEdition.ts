@@ -21,7 +21,8 @@ function restrictDistribution(load: Distributed, barId: string, from: number, to
     s1: to === originalEnd ? segmentLength : withinLength(to - origin, segmentLength), q0, q1, profile }
 }
 
-export function splitBar(model: Structure, barId: string, s: number): Edit<{ node: StructuralNode; bars: readonly [Bar, Bar] }> {
+export function splitBar(model: Structure, barId: string, s: number,
+  options?: { readonly preservePointStations?: boolean }): Edit<{ node: StructuralNode; bars: readonly [Bar, Bar] }> {
   const bar = model.bars.find(item => item.id === barId)
   const geometry = loadBarGeometry(model, barId)
   if (!bar || !geometry) return { error: 'La barra que quieres dividir no existe.' }
@@ -52,7 +53,7 @@ export function splitBar(model: Structure, barId: string, s: number): Edit<{ nod
   const loads = model.loads.flatMap((load): readonly StructuralLoad[] => {
     if (load.kind === 'nodal' || load.barId !== barId) return [load]
     if (load.kind === 'point') {
-      const cutTolerance = Math.min(GEOMETRIC_TOLERANCE, s / 2, (length - s) / 2)
+      const cutTolerance = options?.preservePointStations ? 0 : Math.min(GEOMETRIC_TOLERANCE, s / 2, (length - s) / 2)
       if (Math.abs(load.s - s) <= cutTolerance) {
         return [{ kind: 'nodal', id: load.id, nodeId, force: globalLoadVector(load.force, load.frame, angle), moment: 0 }]
       }

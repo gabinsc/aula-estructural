@@ -11,8 +11,10 @@ import { catalogId, catalogOf, DEFAULT_LIBRARY, linkageIssue, makeSection, mater
 import type { Library, Material } from '../domain/library'
 import { SECTION_FIELDS } from '../geometry/sections'
 import type { ParametricSection, SectionGeometry } from '../geometry/sections'
+import type { DesignSettings } from '../design/contracts'
+import { readDesignSettings } from '../design/settings'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 export interface ProjectView {
   readonly grid: boolean
@@ -27,6 +29,7 @@ export interface ProjectDocument {
   readonly modifiedAt: string
   readonly model: Structure
   readonly view: ProjectView
+  readonly design?: DesignSettings
 }
 
 const ID_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/
@@ -38,10 +41,10 @@ export function projectName(value: string): string {
 }
 
 export function makeProject(name = 'Plano sin título', model = EMPTY_STRUCTURE,
-  view: ProjectView = { grid: true, dimensions: 'hidden' }): ProjectDocument {
+  view: ProjectView = { grid: true, dimensions: 'hidden' }, design?: DesignSettings): ProjectDocument {
   const now = new Date().toISOString()
   return { schemaVersion: SCHEMA_VERSION, id: crypto.randomUUID(), name: projectName(name),
-    createdAt: now, modifiedAt: now, model: { ...model, library: catalogOf(model) }, view }
+    createdAt: now, modifiedAt: now, model: { ...model, library: catalogOf(model) }, view, ...(design && { design }) }
 }
 
 function ensure(value: unknown, message: string): asserts value {
@@ -211,7 +214,7 @@ function parseLibrary(raw: unknown): Library {
     ...(defaultSectionId ? { defaultSectionId } : {}) }
 }
 
-export function parseModel(raw: unknown, version?: 1 | 2 | 3): Structure {
+export function parseModel(raw: unknown, version?: 1 | 2 | 3 | 4): Structure {
   const data = object(raw, 'Modelo')
   const schemaVersion = version ?? (data.library === undefined ? 2 : SCHEMA_VERSION)
   const nodes = list(data.nodes, 'Nudos').map((rawNode): StructuralNode => {
@@ -251,8 +254,8 @@ export function parseModel(raw: unknown, version?: 1 | 2 | 3): Structure {
   unique(supports, support => support.nodeId, 'Apoyos')
   const loads = list(data.loads, 'Cargas').map(parseLoad)
   const loadIds = unique(loads, load => load.id, 'Cargas')
-  const mechanics = schemaVersion === 1 ? EMPTY_MECHANICS : parseMechanics(data.mechanics, barIds, schemaVersion === 3)
-  const library = schemaVersion === 3 ? parseLibrary(data.library) : DEFAULT_LIBRARY
+  const mechanics = schemaVersion === 1 ? EMPTY_MECHANICS : parseMechanics(data.mechanics, barIds, schemaVersion >= 3)
+  const library = schemaVersion >= 3 ? parseLibrary(data.library) : DEFAULT_LIBRARY
   for (const item of mechanics.assignments) {
     const issue = linkageIssue(library, item)
     ensure(!issue, issue ?? '')
@@ -269,7 +272,8 @@ export function parseModel(raw: unknown, version?: 1 | 2 | 3): Structure {
 export function readProject(raw: unknown): ProjectDocument {
   const value = object(raw, 'Proyecto')
   const schemaVersion = value.schemaVersion
-  ensure(schemaVersion === 1 || schemaVersion === 2 || schemaVersion === SCHEMA_VERSION, 'Versión de esquema incompatible. Se admiten las versiones 1, 2 y 3.')
+  ensure(schemaVersion === 1 || schemaVersion === 2 || schemaVersion === 3 || schemaVersion === SCHEMA_VERSION,
+    'Versión de esquema incompatible. Se admiten las versiones 1, 2, 3 y 4.')
   const id = text(value.id, 'ID de proyecto')
   ensure(ID_PATTERN.test(id), 'El ID de proyecto no es válido.')
   const createdAt = date(value.createdAt, 'Fecha de creación')
@@ -280,7 +284,8 @@ export function readProject(raw: unknown): ProjectDocument {
   ensure(typeof grid === 'boolean' && (dimensions === 'hidden' || dimensions === 'selection' || dimensions === 'all'),
     'Las preferencias de vista no son válidas.')
   return { schemaVersion: SCHEMA_VERSION, id, name: projectName(text(value.name, 'Nombre de proyecto')),
-    createdAt, modifiedAt, model: parseModel(value.model, schemaVersion), view: { grid, dimensions } }
+    createdAt, modifiedAt, model: parseModel(value.model, schemaVersion), view: { grid, dimensions },
+    ...(schemaVersion === SCHEMA_VERSION && value.design !== undefined && { design: readDesignSettings(value.design) }) }
 }
 
 export function importProject(json: string): ProjectDocument {

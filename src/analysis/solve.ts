@@ -100,8 +100,9 @@ function solve(input: AnalysisInput, prepared: Preparation, engineVersion: strin
   }
   const nodalValues = (nodeId: string, vector: Float64Array, angular: 'rotation' | 'moment') => {
     const [x, y, rz] = model.dofByNode.get(nodeId)!
-    const translation = { nodeId, x: vector[x]!, y: vector[y]! }
-    if (rz === undefined || (angular === 'moment' && model.supports.get(nodeId)?.kind !== 'fixed')) return translation
+    const hasTranslationSupport = angular === 'rotation' || model.supports.has(nodeId)
+    const translation = { nodeId, x: hasTranslationSupport ? vector[x]! : 0, y: hasTranslationSupport ? vector[y]! : 0 }
+    if (rz === undefined || (angular === 'moment' && !model.rotationLocks.has(nodeId))) return translation
     return { ...translation, [angular]: vector[rz]! }
   }
   const elements: BarResult[] = []
@@ -146,6 +147,7 @@ function solve(input: AnalysisInput, prepared: Preparation, engineVersion: strin
   }) } : undefined
   return { ...provenance, ok: true, diagnostics, dofs: model.dofs, loads: model.loads, checks,
     displacements: model.nodes.map(node => nodalValues(node.id, u, 'rotation')),
-    reactions: model.nodes.filter(node => model.supports.has(node.id)).map(node => nodalValues(node.id, R, 'moment')),
+    reactions: model.nodes.filter(node => model.supports.has(node.id) || model.rotationLocks.has(node.id))
+      .map(node => nodalValues(node.id, R, 'moment')),
     bars: elements, trace }
 }

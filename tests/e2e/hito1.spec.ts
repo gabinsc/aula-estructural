@@ -1183,7 +1183,7 @@ test.describe('Interfaz CAD reorganizada', () => {
   test('la barra y las ventanas conservan el acceso a los controles en anchuras reducidas', async ({ page }) => {
     for (const width of [320, 480, 800]) {
       await page.setViewportSize({ width, height: 720 })
-      await expect(page.getByText('Beta 0.1', { exact: true })).toBeVisible()
+      await expect(page.getByText('Beta 0.2', { exact: true })).toBeVisible()
       await expect(page.getByText('Uso educativo. No utilizar para diseño profesional.', { exact: true })).toBeVisible()
       const footer = page.getByRole('region', { name: 'Estado del modelador' })
       await expect.poll(() => page.evaluate(() => {

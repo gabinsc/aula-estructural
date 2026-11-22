@@ -53,7 +53,7 @@ export function snapToGrid(point: Point, step: Point): Point {
 }
 
 /** Las referencias fijas se recalculan al editar el documento. Nearest y Perpendicular requerirán el cursor. */
-export function buildObjectSnaps(model: Structure): readonly ObjectSnapCandidate[] {
+export function buildObjectSnaps(model: Pick<Structure, 'nodes' | 'bars'>): readonly ObjectSnapCandidate[] {
   const nodes = new Map(model.nodes.map(node => [node.id, node]))
   const segments = model.bars.flatMap(bar => {
     const start = nodes.get(bar.startId)

@@ -85,7 +85,7 @@ export function assembleModel(model: PreparedModel, includeTrace = false) {
   return { K, F: Float64Array.from(forces, compensatedSum), equivalentLocal, equivalentGlobal, equivalentLoads, memberLoads }
 }
 
-function rollerNormal(angle: number): Point {
+export function rollerNormal(angle: number): Point {
   // Las orientaciones canónicas tienen un eje exactamente nulo en la geometría.
   // Evaluar cos(π/2) introduciría rigidez espuria al equilibrar la diagonal.
   if (angle === 0) return { x: 0, y: 1 }
@@ -114,7 +114,7 @@ export function reduceComponent(model: PreparedModel, component: PreparedCompone
       columns.push(reducedDofs.length, reducedDofs.length + 1)
       reducedDofs.push({ nodeId, axis: 'ux', direction: { x: 1, y: 0 } }, { nodeId, axis: 'uy', direction: { x: 0, y: 1 } })
     }
-    if (model.dofByNode.get(nodeId)!.length === 3 && support?.kind !== 'fixed') {
+    if (model.dofByNode.get(nodeId)!.length === 3 && !model.rotationLocks.has(nodeId)) {
       columns.push(reducedDofs.length)
       reducedDofs.push({ nodeId, axis: 'rz', direction: { x: 0, y: 0 } })
     }

@@ -5,6 +5,7 @@ import type { ElementKind, MechanicalAssignment, MechanicalField, MechanicalPatc
 import type { Structure } from '../../domain/structure'
 import type { Action } from '../tools/editor'
 import { LibraryAssignment } from './LibraryAssignment'
+import { AcademicHelp } from '../../app/academic/AcademicHelp'
 
 const FIELDS = [
   { key: 'E', label: 'E (GPa)' },
@@ -32,6 +33,9 @@ export function MechanicalInspector({ model, barIds, dispatch }: {
   const assignments = barIds.map(id => byId.get(id))
   return <details className="mechanical-section">
     <summary>Propiedades mecánicas</summary>
+    <AcademicHelp title="Qué significan E, A e I">
+      <p>E es el módulo elástico y A el área de la sección. Su producto EA determina la rigidez axial. I es el segundo momento de área respecto al eje de flexión elegido. En pórticos, EI determina la rigidez a flexión.</p>
+    </AcademicHelp>
     <MechanicalForm key={JSON.stringify([barIds, assignments])} assignments={assignments} barIds={barIds} dispatch={dispatch} />
     <LibraryAssignment model={model} assignments={assignments} barIds={barIds} dispatch={dispatch} />
   </details>

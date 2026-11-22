@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Dispatch, FormEvent } from 'react'
+import { AcademicHelp } from '../../app/academic/AcademicHelp'
 import { loadBarGeometry, loadTarget, toKiloUnits } from '../../domain/load'
 import type { LoadDefinition, StructuralLoad } from '../../domain/load'
 import type { GeometrySelection, Structure } from '../../domain/structure'
@@ -69,6 +70,10 @@ export function LoadInspector({ model, target, activeId, assigning, direct, pres
 
   return <section className="load-inspector" aria-label="Cargas del elemento">
     <h4>{direct ? `Carga ${direct.id} · ${loadName(direct)}` : `Cargas de ${target.id}`}</h4>
+    <AcademicHelp title="Cargas y ejes de referencia">
+      <p>Una acción nodal aplica una fuerza o un momento en un nudo. Una fuerza puntual de barra actúa a la distancia física s. Una distribuida aplica fuerza por unidad de longitud entre s₀ y s₁.</p>
+      <p>En global, +X apunta a la derecha y +Y hacia arriba. En una barra, +x′ va del nudo inicial al final y +y′ se obtiene al girar +90°. Un momento nodal positivo es antihorario.</p>
+    </AcademicHelp>
     {direct && <p className="field-help">Asociada a {target.kind === 'node' ? 'nudo' : 'barra'} {target.id}.</p>}
     {!direct && !!loads.length && <ul className="load-list">
       {loads.map(load => <li key={load.id}>

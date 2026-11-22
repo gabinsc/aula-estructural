@@ -48,6 +48,7 @@ interface CanvasProps {
   avmControl: ReactNode
   analysisStatus: string
   invalidDiagram: boolean
+  methodMarkers?: ReactNode
 }
 
 interface Gesture {
@@ -69,7 +70,7 @@ function pointerPosition(canvas: SVGSVGElement, clientX: number, clientY: number
 
 export function ModelCanvas({
   editor, dispatch, camera, setCamera, viewport, setViewport, cursor, setCursor, showGrid, viewIndicator, pointAt, snapPoint,
-  overlaps, configureGrid, dimensions, overlay, avmControl, analysisStatus, invalidDiagram,
+  overlaps, configureGrid, dimensions, overlay, avmControl, analysisStatus, invalidDiagram, methodMarkers,
 }: CanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const gesture = useRef<Gesture | null>(null)
@@ -326,6 +327,7 @@ export function ModelCanvas({
         width={Math.abs(box.start.x - box.end.x)} height={Math.abs(box.start.y - box.end.y)} />}
       {crosshair && endpoint && <SnapMarker point={crosshair} kind={endpoint.kind} />}
       <Grid camera={camera} viewport={viewport} rulers />
+      {methodMarkers}
     </svg>
     {context && menu && <CadContextMenu point={context.screen} title={menu.title} items={menu.items}
       close={() => setContext(null)} focusCanvas={() => svgRef.current?.focus({ preventScroll: true })} />}

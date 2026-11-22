@@ -5,6 +5,7 @@ import type { NodalSupport, SupportDefinition } from '../../domain/support'
 import { degrees, radians } from '../../geometry/coordinates'
 import { formatNumber, parseNumber } from '../format'
 import type { Action } from '../tools/editor'
+import { AcademicHelp } from '../../app/academic/AcademicHelp'
 
 const names = { pinned: 'Articulado', roller: 'Rodillo', fixed: 'Empotrado' } as const
 
@@ -50,6 +51,9 @@ export function NodeSupport({ nodeId, support, assigning, preset, dispatch }: {
 
   return <section className="node-support" aria-label="Apoyo nodal">
     <h4>Apoyo de {nodeId}</h4>
+    <AcademicHelp title="Qué restringe cada apoyo">
+      <p>El articulado restringe las dos traslaciones y permite el giro. El rodillo restringe solo la traslación normal a su superficie. El empotrado restringe las dos traslaciones y el giro.</p>
+    </AcademicHelp>
     {support && <dl className="support-properties">
       <dt>Tipo</dt><dd>{names[support.kind]}</dd>
       <dt>Orientación</dt><dd>{support.kind === 'roller' ? `${formatNumber(displayedAngle, 8)}° global` : 'Sin inclinación configurable'}</dd>

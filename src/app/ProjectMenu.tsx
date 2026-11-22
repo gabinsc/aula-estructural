@@ -2,9 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { projectStore } from '../infrastructure/projectStore'
 import { importProject, makeProject, projectName } from '../projects/document'
 import type { ProjectDocument } from '../projects/document'
+import { copyAcademicExample } from '../projects/academicExamples'
 import { messageFor } from '../projects/useProjectSave'
 import type { useProjectSave, WorkspaceProject } from '../projects/useProjectSave'
 import { Icon } from './Icon'
+import { AcademicCatalog } from './academic/AcademicCatalog'
+import { ProjectHelp } from './academic/AcademicHelp'
 
 type SaveState = ReturnType<typeof useProjectSave>
 
@@ -28,6 +31,7 @@ function ProjectDialog({ close, storage, rename, activate, openLibrary }: Omit<P
   const [name, setName] = useState(snapshot.name)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [catalogOpen, setCatalogOpen] = useState(false)
 
   useLayoutEffect(() => {
     const element = dialog.current!
@@ -88,6 +92,18 @@ function ProjectDialog({ close, storage, rename, activate, openLibrary }: Omit<P
         <p className="field-help">IndexedDB guarda en este navegador. Exporta un archivo JSON para llevar una copia fuera del navegador.</p>
         {(error || storage.error) && <p className="form-error" role="alert">{error || storage.error}</p>}
         <div className="project-actions">
+          <button type="button" className="button secondary" disabled={busy}
+            aria-expanded={catalogOpen} aria-controls="academic-projects" onClick={() => setCatalogOpen(!catalogOpen)}>
+            {catalogOpen ? 'Volver a proyectos' : 'Ejemplos'}
+          </button>
+        </div>
+        <div id="academic-projects" hidden={!catalogOpen}>
+          {catalogOpen && <AcademicCatalog busy={busy} openCopy={example => void run(async () => {
+            if (await canLeave()) await begin(copyAcademicExample(example))
+          })} />}
+        </div>
+        {!catalogOpen && <>
+        <div className="project-actions">
           <button className="button secondary" type="button" disabled={busy} onClick={() => { close(); openLibrary() }}>Biblioteca de materiales y secciones</button>
           <button className="button secondary" type="button" disabled={busy} onClick={() => void run(async () => {
             if (await canLeave()) await begin(makeProject())
@@ -97,7 +113,7 @@ function ProjectDialog({ close, storage, rename, activate, openLibrary }: Omit<P
             setProjects(await projectStore.list())
           })}>Guardar proyecto</button>
           <button className="button secondary" type="button" disabled={busy} onClick={() => void run(async () => {
-            await begin(makeProject(`${snapshot.name.slice(0, 72)} (copia)`, snapshot.model, snapshot.view))
+            await begin(makeProject(`${snapshot.name.slice(0, 72)} (copia)`, snapshot.model, snapshot.view, snapshot.design))
           })}>Guardar como copia</button>
           <button className="button secondary" type="button" disabled={busy} onClick={exportFile}>Exportar JSON</button>
           <button className="button secondary" type="button" disabled={busy} onClick={() => fileInput.current?.click()}>Importar JSON</button>
@@ -137,6 +153,8 @@ function ProjectDialog({ close, storage, rename, activate, openLibrary }: Omit<P
               })}>Eliminar</button>
           </li>)}
         </ul> : <p className="field-help">Aún no hay proyectos guardados.</p>}
+        <ProjectHelp />
+        </>}
       </div>
     </div>
   </dialog>

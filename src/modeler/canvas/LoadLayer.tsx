@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { distributedIntensity, globalLoadVector, loadBarGeometry, loadTarget, toKiloUnits } from '../../domain/load'
 import type { LoadDefinition, LoadFrame } from '../../domain/load'
 import type { Structure } from '../../domain/structure'
@@ -113,7 +114,7 @@ function DistributedSymbol({ load, frame, index, camera, viewport }: {
   </>
 }
 
-export function LoadLayer({ model, positions, camera, viewport, selectedIds, activeId, draft }: {
+export const LoadLayer = memo(function LoadLayer({ model, positions, camera, viewport, selectedIds, activeId, draft }: {
   model: Structure
   positions: ReadonlyMap<string, Point>
   camera: Camera
@@ -147,4 +148,4 @@ export function LoadLayer({ model, positions, camera, viewport, selectedIds, act
     })}
     {draft && <g className="load-symbol is-draft" data-load-preview={draft.kind}>{symbol(draft, 0, 'Vista previa')}</g>}
   </g>
-}
+})

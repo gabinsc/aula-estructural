@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { AnalysisCase, AnalysisDiagnostic, AnalysisResult } from '../../analysis'
-import type { WorkerResponse } from '../../analysis/analysis.worker'
+import type { WorkerRequest, WorkerResponse } from '../../analysis/analysis.worker'
+import type { MethodDetail, MethodRequest } from '../../analysis/methods'
 import type { Structure } from '../../domain/structure'
 import { analysisRevision, makeAnalysisRequest, missingMechanics } from '../../projects/analysisInput'
 
@@ -9,15 +10,16 @@ export type AnalysisState =
   | { readonly status: 'idle' }
   | { readonly status: 'incomplete' | 'failed'; readonly diagnostics: readonly AnalysisDiagnostic[] }
   | { readonly status: 'pending' | 'stale'; readonly revision: string }
-  | { readonly status: 'current'; readonly result: Success }
+  | { readonly status: 'current'; readonly result: Success; readonly detail?: MethodDetail }
 
 export const ANALYSIS_STATUS: Record<AnalysisState['status'], string> = {
   idle: 'Sin análisis', incomplete: 'Datos incompletos', pending: 'Analizando…',
   current: 'Resultado vigente', stale: 'Resultado desactualizado', failed: 'Análisis fallido',
 }
 
-export function useAnalysis(model: Structure, loadCase: AnalysisCase) {
-  const revision = useMemo(() => analysisRevision(model, loadCase), [model, loadCase])
+export function useAnalysis(model: Structure, loadCase: AnalysisCase, method?: MethodRequest) {
+  const physicalRevision = useMemo(() => analysisRevision(model, loadCase), [model, loadCase])
+  const revision = method ? JSON.stringify([physicalRevision, method]) : physicalRevision
   const missing = useMemo(() => missingMechanics(model), [model])
   const [stored, setStored] = useState<{ revision: string; state: AnalysisState }>()
   const running = useRef<{ id: number; revision: string; worker: Worker } | undefined>(undefined)
@@ -56,7 +58,7 @@ export function useAnalysis(model: Structure, loadCase: AnalysisCase) {
         if (running.current?.id !== id || data.id !== id || data.result.revision !== revision) return
         stop()
         const result = data.result
-        update(result.ok ? { status: 'current', result } : { status: 'failed', diagnostics: result.diagnostics })
+        update(result.ok ? { status: 'current', result, detail: data.detail } : { status: 'failed', diagnostics: result.diagnostics })
       }
       worker.onerror = worker.onmessageerror = () => {
         if (running.current?.id !== id) return
@@ -64,7 +66,7 @@ export function useAnalysis(model: Structure, loadCase: AnalysisCase) {
         fail()
       }
       update({ status: 'pending', revision })
-      worker.postMessage({ id, input: request.input })
+      worker.postMessage({ id, input: request.input, ...(method && { method }) } satisfies WorkerRequest)
     } catch {
       stop()
       fail()
@@ -74,5 +76,5 @@ export function useAnalysis(model: Structure, loadCase: AnalysisCase) {
     : stored && (stored.state.status === 'current' || stored.state.status === 'pending' || stored.state.status === 'stale')
       ? { status: 'stale', revision: stored.revision }
       : missing.length ? { status: 'incomplete', diagnostics: missing } : { status: 'idle' }
-  return { state, run, missing }
+  return { state, run, missing, physicalRevision, revision }
 }

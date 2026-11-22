@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Structure } from '../domain/structure'
+import type { DesignSettings } from '../design/contracts'
 import { projectStore } from '../infrastructure/projectStore'
 import type { ProjectDocument, ProjectView } from './document'
 
@@ -10,13 +11,14 @@ export function messageFor(error: unknown) {
 }
 
 function sameContents(a: ProjectDocument, b: ProjectDocument) {
-  return a.model === b.model && a.name === b.name && a.view.grid === b.view.grid && a.view.dimensions === b.view.dimensions
+  return a.model === b.model && a.name === b.name && a.design === b.design &&
+    a.view.grid === b.view.grid && a.view.dimensions === b.view.dimensions
 }
 
-export function useProjectSave(initial: WorkspaceProject, name: string, model: Structure, view: ProjectView) {
+export function useProjectSave(initial: WorkspaceProject, name: string, model: Structure, view: ProjectView, design?: DesignSettings) {
   const { grid, dimensions } = view
-  const snapshot = useMemo(() => ({ ...initial.document, name, model, view: { grid, dimensions } }),
-    [initial.document, name, model, grid, dimensions])
+  const snapshot = useMemo(() => ({ ...initial.document, name, model, view: { grid, dimensions }, design }),
+    [initial.document, name, model, grid, dimensions, design])
   const latest = useRef(snapshot)
   latest.current = snapshot
   const committed = useRef(initial.document)

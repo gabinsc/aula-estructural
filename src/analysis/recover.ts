@@ -52,15 +52,15 @@ export function checkComponent(model: PreparedModel, component: PreparedComponen
     }
     displacementScale = Math.max(displacementScale, Math.hypot(u[x]!, u[y]!))
     if (rz !== undefined) rotationScale = Math.max(rotationScale, Math.abs(u[rz]!))
+    if (rz !== undefined && model.rotationLocks.has(nodeId)) {
+      mz.push(R[rz]!)
+      rotationCompatibilityResidual = Math.max(rotationCompatibilityResidual, Math.abs(u[rz]!))
+    }
     const support = model.supports.get(nodeId)
     if (!support) continue
     fx.push(R[x]!)
     fy.push(R[y]!)
     mz.push(armX * R[y]!, -armY * R[x]!)
-    if (support.kind === 'fixed' && rz !== undefined) {
-      mz.push(R[rz]!)
-      rotationCompatibilityResidual = Math.max(rotationCompatibilityResidual, Math.abs(u[rz]!))
-    }
     const normal = reduced.normals.get(nodeId)
     if (normal) {
       const tangentResidual = Math.abs(normal.y * R[x]! - normal.x * R[y]!)

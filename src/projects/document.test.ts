@@ -27,7 +27,7 @@ describe('Documento de proyecto versionado', () => {
     const source = readFileSync(new URL(`../../examples/${file}`, import.meta.url), 'utf8')
     const original = JSON.parse(source)
     expect(original.schemaVersion).toBe(1)
-    expect(importProject(source)).toEqual({ ...original, schemaVersion: 3,
+    expect(importProject(source)).toEqual({ ...original, schemaVersion: 4,
       model: { ...original.model, mechanics: { version: 1, assignments: [] }, library: DEFAULT_LIBRARY } })
   })
   it('admite un modelo vacío y conserva íntegro el modelo físico de un JSON completo', () => {
@@ -42,7 +42,7 @@ describe('Documento de proyecto versionado', () => {
 
   it('rechaza JSON corrupto, versión incompatible y números no finitos', () => {
     expect(() => importProject('{?')).toThrow('JSON válido')
-    expect(() => readProject({ ...project(), schemaVersion: 4 })).toThrow('Versión de esquema')
+    expect(() => readProject({ ...project(), schemaVersion: 5 })).toThrow('Versión de esquema')
     const data = project()
     const [node] = data.model.nodes
     expect(() => readProject({ ...data, model: { ...data.model, nodes: [{ ...node, x: Infinity }] } })).toThrow('finito')
@@ -68,12 +68,26 @@ describe('Documento de proyecto versionado', () => {
     const entry = { barId: 'B1', kind: 'frame2d', materialId: 'acero', sectionId: 's1', sectionAxis: 'y',
       E: 200e9, A: section.values.A, I: section.values.Iyy }
     const model = { ...data.model, library, mechanics: { version: 1, assignments: [entry] } }
+    expect(readProject({ ...data, schemaVersion: 3, model })).toEqual({ ...data, model })
     expect(importProject(JSON.stringify({ ...data, model }))).toEqual({ ...data, model })
     expect(() => readProject({ ...data, model: { ...model, mechanics: { version: 1,
       assignments: [{ ...entry, sectionId: 'ausente' }] } } })).toThrow('inexistente')
     expect(() => readProject({ ...data, model: { ...model, library: { ...library, sections: [
       { ...section, values: { ...section.values, A: 5 } },
     ] } } })).toThrow('inconsistentes')
+  })
+
+  it('conserva datos de diseño SI en v4 y valida los metadatos resistentes', () => {
+    const data = project()
+    const design = { materials: [{ materialId: 'acero', origin: 'normative-verified', source: 'Referencia de prueba', fy: 250e6, fu: 410e6 }],
+      criterion: { id: 'explicit', name: 'Criterio del ejercicio', tension: 95e6,
+        service: { reference: 'relative-chord', limit: .012 } } } as const
+    expect(importProject(JSON.stringify({ ...data, design }))).toEqual({ ...data, design })
+    expect(readProject({ ...data, schemaVersion: 3, design })).toEqual(data)
+    expect(() => readProject({ ...data, design: { ...design, materials: [...design.materials, ...design.materials] } })).toThrow('duplicadas')
+    expect(() => readProject({ ...data, design: { ...design, materials: [{ ...design.materials[0], fy: -1 }] } })).toThrow('fy')
+    expect(() => readProject({ ...data, design: { ...design, criterion: { ...design.criterion, service: { ...design.criterion.service,
+      reference: 'global' } } } })).toThrow('referencia')
   })
 
   it('rechaza la sección mecánica inválida sin aceptar una parte del documento', () => {

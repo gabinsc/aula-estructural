@@ -2,6 +2,8 @@
 
 Modelador CAD 2D para dibujar y estudiar estructuras planas. Permite editar nudos y barras, aplicar apoyos y cargas, analizar armaduras y pórticos, y guardar proyectos en el navegador.
 
+Para empezar, abre **Proyectos → Ejemplos**, elige un ejercicio y pulsa **Abrir copia editable**. La ficha explica qué observar y ofrece resultados de referencia. **Proyectos → Guía rápida** contiene los pasos para crear un modelo desde cero. [Guía de usuario](docs/USER_GUIDE.md) · [Preparación del Hito 6 para Pages](docs/HITO_6_BETA_RELEASE.md)
+
 ## Ejecutar en local
 
 Requiere Node.js 22.12 o posterior de la serie 22, o Node.js 24 o posterior, y npm 11. La instalación se verificó con Node.js 24 y npm 11. Comprueba las versiones desde la terminal en la que ejecutarás el proyecto.
@@ -82,7 +84,7 @@ Los resultados se marcan como desactualizados cuando cambia el modelo físico o 
 
 Abre **Proyectos** en la barra superior para crear, guardar, renombrar, abrir, duplicar y eliminar proyectos. Los cambios confirmados se autoguardan en IndexedDB. El indicador muestra si hay cambios pendientes, confirmación de guardado o un error. Al abrir o recuperar un proyecto, se inicia un historial de sesión nuevo.
 
-**Exportar JSON** crea una copia de esquema 3 con sus propiedades mecánicas y biblioteca. **Importar JSON** valida todo el documento, conserva el ID si está disponible y crea un ID nuevo si ya existe localmente. La versión 1 se migra con propiedades mecánicas pendientes y la versión 2 conserva los valores manuales. Los datos locales dependen del origen web y del perfil de navegador. [Pórtico con apoyos y cargas](examples/portico.json) · [Documento vacío](examples/vacio.json)
+**Exportar JSON** crea una copia de esquema 4 con las propiedades mecánicas, la biblioteca y los datos de diseño declarados. **Importar JSON** valida todo el documento, conserva el ID si está disponible y crea un ID nuevo si ya existe localmente. La versión 1 se migra con propiedades mecánicas pendientes y las versiones 2 y 3 conservan los datos existentes. Los datos locales dependen del origen web y del perfil de navegador. [Pórtico con apoyos y cargas](examples/portico.json) · [Documento vacío](examples/vacio.json)
 
 En **Biblioteca de materiales y secciones** puedes crear materiales y dibujar secciones con dimensiones numéricas. En el Inspector, **Asignación desde biblioteca** permite confirmar material, sección y eje de flexión. [Biblioteca](docs/HITO_5_2_MATERIAL_LIBRARY.md) · [Editor de secciones](docs/HITO_5_3_SECTION_EDITOR.md)
 
@@ -105,6 +107,8 @@ El flujo de Pages se ejecuta manualmente. Consulta los pasos para conectar GitHu
 npx playwright install chromium
 npm run test:e2e
 ```
+
+Para verificar Firefox en PowerShell, instala el navegador de Playwright con `npx playwright install firefox`, define `$env:AULA_E2E_BROWSER='firefox'` y ejecuta `npm run test:e2e`. Para usar Edge, conserva el navegador predeterminado y define `$env:AULA_E2E_CHANNEL='msedge'`.
 
 Playwright compila la aplicación mediante el script de npm y abre una vista previa temporal en `127.0.0.1:4189`. Para usar Microsoft Edge instalado, establece `AULA_E2E_CHANNEL=msedge` antes de ejecutar el script. En PowerShell, usa `$env:AULA_E2E_CHANNEL = 'msedge'`. [Navegadores de Playwright](https://playwright.dev/docs/browsers)
 

@@ -1,4 +1,6 @@
-# Publicación de Aula Estructural · Beta 0.1
+# Publicación de Aula Estructural · Beta 0.2
+
+La segunda beta incluye los métodos académicos del Hito 7, su auditoría matemática y las consultas elásticas nominales del Hito 8.1. Su etiqueta es `v0.2.0-beta.1` y usa el sitio existente. [Aula Estructural](https://gabinsc.github.io/aula-estructural/) · [Alcance de diseño](HITO_8_1_DESIGN_FOUNDATIONS.md)
 
 ## Primera publicación
 
@@ -30,9 +32,9 @@ git push origin main
 
 ## Proyectos guardados
 
-La beta usa los mismos almacenes de IndexedDB y el esquema JSON 3. Lee proyectos de esquemas 1 y 2, y los migra a 3 al guardarlos, conservando sus IDs y valores existentes. Guardar y recargar usa el mismo perfil de navegador y origen web. Para llevar proyectos desde localhost, otro navegador u otro origen, utiliza **Proyectos → Exportar JSON** y después **Importar JSON** en el destino.
+Beta 0.2 conserva el origen y los almacenes de IndexedDB. Lee los esquemas JSON 1, 2 y 3 y escribe v4 al guardar, conservando identificadores y propiedades existentes. JSON v4 añade las resistencias declaradas y los criterios de diseño. Para llevar proyectos desde localhost, otro navegador u otro origen, utiliza **Proyectos → Exportar JSON** y después **Importar JSON** en el destino.
 
-Cada actualización de la versión pública debe comprobar la lectura de los proyectos de la beta y conservar sus datos. Antes de publicar un nuevo esquema, prueba también la reversión con proyectos guardados por la nueva versión. Un lector antiguo puede rechazar un esquema posterior y conservar el registro intacto. En ese caso, despliega una versión de recuperación que pueda leer ese esquema antes de retomar las ediciones. Esta publicación mantiene el esquema 3 y conserva la base local.
+Beta 0.1 conserva intactos los registros v4 que encuentre, pero requiere un lector v4 para abrirlos. Si hay que reponer la interfaz anterior después de que usuarios hayan guardado en v4, prepara una versión de recuperación con el lector v4 antes de volver a publicar.
 
 ## Alcance de la revisión pública
 

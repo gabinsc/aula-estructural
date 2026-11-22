@@ -92,7 +92,7 @@ test('resuelve las referencias de armadura axial, triangular y rodillo inclinado
   await openProject(page, axial)
   expect((await styles).ok()).toBe(true)
   expect(new URL(page.url()).pathname).toBe('/aula-estructural/')
-  await expect(page.getByText('Beta 0.1', { exact: true })).toBeVisible()
+  await expect(page.getByText('Beta 0.2', { exact: true })).toBeVisible()
   await expect(page.getByText('Uso educativo. No utilizar para diseño profesional.', { exact: true })).toBeVisible()
   await expect(page.locator('.brand-mark svg')).toBeVisible()
   await expect(page.locator('svg [data-bar-id="B1"] .member-line')).toHaveCSS('stroke', 'rgb(138, 224, 240)')
@@ -201,7 +201,7 @@ test('avisa de propiedades pendientes y migración v1, edita en lote, deshace y 
   await importFile(page, { ...source, schemaVersion: 1, model: oldModel })
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const migrated = await exportFile(page)
-  expect(migrated).toMatchObject({ id: source.id, schemaVersion: 3, createdAt: source.createdAt, modifiedAt: source.modifiedAt })
+  expect(migrated).toMatchObject({ id: source.id, schemaVersion: 4, createdAt: source.createdAt, modifiedAt: source.modifiedAt })
   expect(migrated.model).toEqual({ ...oldModel, mechanics: { version: 1, assignments: [] }, library: DEFAULT_LIBRARY })
   await run(page, 'Datos incompletos')
   await expect(results(page).getByRole('list', { name: 'Diagnósticos de análisis' }).getByRole('button', { name: 'B1' })).toBeVisible()
@@ -374,10 +374,10 @@ test('migra IndexedDB v1 al guardar y conserva un registro de una versión poste
   await button(page, 'Proyectos').click()
   await button(page, 'Guardar proyecto').click()
   await expect.poll(async () => (await readStored()).revision).toBe(4)
-  const migrated = { ...legacy, schemaVersion: 3,
+  const migrated = { ...legacy, schemaVersion: 4,
     model: { ...oldModel, mechanics: { version: 1, assignments: [] }, library: DEFAULT_LIBRARY } }
   expect((await readStored()).document).toEqual(migrated)
-  const future = { ...migrated, schemaVersion: 4 }
+  const future = { ...migrated, schemaVersion: 5 }
   await seedStored(future, 5)
   await page.reload()
   await expect(saved(page)).toHaveText('Recuperación local fallida')

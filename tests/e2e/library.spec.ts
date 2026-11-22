@@ -88,7 +88,7 @@ test('crea, edita, busca, duplica y elimina materiales con validación y confirm
   await expect(library.getByRole('button', { name: /Acero de laboratorio.*Predeterminado/ })).toBeVisible()
 })
 
-test('migra v2, asigna en lote, compara el análisis y recupera la biblioteca en JSON v3', async ({ page }) => {
+test('migra v2, asigna en lote, compara el análisis y recupera la biblioteca en JSON v4', async ({ page }) => {
   await page.goto('./')
   const I = .4 * .2 ** 3 / 12
   const fixture = {
@@ -103,7 +103,7 @@ test('migra v2, asigna en lote, compara el análisis y recupera la biblioteca en
   }
   await importProject(page, fixture)
   const migrated = await exportProject(page)
-  expect(migrated.schemaVersion).toBe(3)
+  expect(migrated.schemaVersion).toBe(4)
   expect(migrated.model.mechanics).toEqual(fixture.model.mechanics)
   expect(migrated.model.nodes).toEqual(fixture.model.nodes)
   const solve = async () => {

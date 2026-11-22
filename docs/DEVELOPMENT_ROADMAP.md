@@ -30,12 +30,24 @@ El Hito 4.6 incorpora diagramas individuales en el CAD, franjas AVM coordinadas 
 
 ### Ampliaciones previstas
 
-El plan académico incluye estabilidad e isostaticidad, trabajo virtual, líneas de influencia, método de las fuerzas y distribución de momentos. El almacenamiento remoto, la sincronización y los servicios de usuario se evaluarán en fases posteriores.
+Queda prevista una evaluación específica de estabilidad e isostaticidad. El almacenamiento remoto, la sincronización y los servicios de usuario se evaluarán en fases posteriores.
 
 ### Hitos 5.2 y 5.3 · Materiales y secciones
 
 La biblioteca local conserva materiales, fuentes, secciones, predeterminados explícitos y vínculos por barra. El editor admite ocho familias paramétricas, composiciones validadas y propiedades manuales. JSON v3 mantiene E, A e I de los proyectos previos y permite asignaciones y sobrescrituras en lote. [Biblioteca](HITO_5_2_MATERIAL_LIBRARY.md) · [Editor](HITO_5_3_SECTION_EDITOR.md)
 
-### Diseño estructural y verificaciones normativas
+### Hito 6 · Estabilización y experiencia académica
 
-Se mantiene previsto como módulo independiente del análisis estructural. Podrá consumir sus resultados y gestionar sus criterios normativos.
+El catálogo local ofrece seis ejercicios con referencias independientes y abre copias editables. La guía rápida y la ayuda contextual cubren el recorrido CAD–AVM–Aprender. Este incremento conserva el esquema JSON 3 y el flujo manual de Pages de Beta 0.1. [Auditoría](HITO_6_FINAL_AUDIT.md) · [Preparación de la publicación](HITO_6_BETA_RELEASE.md)
+
+### Hitos 7.1 y 7.2 · Trabajo virtual y método de las fuerzas
+
+Trabajo virtual integra productos de acciones internas reales y unitarias. El método de las fuerzas usa esas integrales para obtener la flexibilidad de las restricciones seleccionadas, resolver compatibilidad y recuperar resultados estructurales. Ambos procedimientos se ejecutan en el Worker con configuraciones de sesión. [Trabajo virtual](HITO_7_1_VIRTUAL_WORK.md) · [Método de las fuerzas](HITO_7_2_FORCE_METHOD.md)
+
+### Hitos 7.3 y 7.4 · Influencia, trenes y Hardy Cross
+
+Las líneas de influencia evalúan una respuesta fija al mover una unidad o un tren por un camino explícito. Los extremos se buscan por eventos y raíces interiores. Hardy Cross distribuye momentos y transportes por barridos para vigas y pórticos sin rotación apreciable de cuerda. [Líneas de influencia](HITO_7_3_INFLUENCE_LINES.md) · [Distribución de momentos](HITO_7_4_MOMENT_DISTRIBUTION.md)
+
+### Hito 8.1 · Fundamentos de diseño estructural
+
+El módulo independiente de Diseño consume esfuerzos vigentes y evalúa la tensión normal elástica por sección y por barra. Los parámetros resistentes declarados y los límites explícitos se guardan en JSON v4. Las próximas etapas de diseño podrán incorporar combinaciones y verificaciones normativas de acero y concreto. [Fundamentos y aceptación](HITO_8_1_DESIGN_FOUNDATIONS.md)

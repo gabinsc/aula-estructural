@@ -167,6 +167,13 @@ function prepare(input: AnalysisInput, allowFrames: boolean): Preparation {
     })
   }
 
+  const rotationLocks = new Set([...supports.values()]
+    .filter(support => support.kind === 'fixed' && rotationalNodes.has(support.nodeId)).map(support => support.nodeId))
+  for (const nodeId of input.rotationLocks ?? []) {
+    if (!rotationalNodes.has(nodeId)) error('INVALID_MODEL', 'Bloqueo temporal en un nudo sin giro activo.', { nodeIds: [nodeId] })
+    else rotationLocks.add(nodeId)
+  }
+
   const selected = new Set(loadCase.loadIds ?? model.loads.map(load => load.id))
   const allLoads = new Set(model.loads.map(load => load.id))
   if (allLoads.size !== model.loads.length) error('INVALID_MODEL', 'Hay identificadores de carga repetidos.')
@@ -218,5 +225,5 @@ function prepare(input: AnalysisInput, allowFrames: boolean): Preparation {
     error('ISOLATED_NODE', 'El nudo está aislado y no pertenece a ningún elemento.', { nodeIds: group.nodeIds })
   }
   if (diagnostics.some(item => item.severity === 'error')) return { ok: false, diagnostics }
-  return { ok: true, model: { nodes: nodes.map(node => ({ ...node })), bars, loads, supports, components: connected, dofs, dofByNode }, diagnostics }
+  return { ok: true, model: { nodes: nodes.map(node => ({ ...node })), bars, loads, supports, rotationLocks, components: connected, dofs, dofByNode }, diagnostics }
 }
