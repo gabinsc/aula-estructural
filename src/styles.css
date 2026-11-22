@@ -554,9 +554,6 @@ kbd {
   .inspector-body { display: block; }
   .shortcut-groups { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 360px) {
-  .brand-mark { display: none; }
-}
 @media (max-width: 565px) {
   .statusbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 8px; padding-block: 4px; }
   .status-geometry { grid-column: 1 / -1; justify-content: space-between; }
@@ -684,8 +681,9 @@ kbd {
   .brand-mark { display: grid; }
 }
 @media (max-width: 360px) {
-  .topbar { padding-inline: 6px; }
-  .top-right { gap: 2px; }
+  .workspace { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .topbar { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 6px 8px; }
+  .top-right { flex-wrap: wrap; gap: 4px; }
   .brand-mark { width: 26px; height: 26px; }
 }
 
