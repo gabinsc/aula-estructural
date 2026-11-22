@@ -1,6 +1,7 @@
 import type { FrameSection } from '../analysis'
 import type { SectionAxis } from '../domain/library'
 import type { SectionProperties } from '../geometry/sections'
+import type { SteelMemberSettings } from './steel/contracts'
 
 export const PA_PER_MPA = 1e6
 
@@ -24,6 +25,7 @@ export interface DesignCriterion {
 export interface DesignSettings {
   readonly materials: readonly DesignMaterialProperties[]
   readonly criterion?: DesignCriterion
+  readonly steel?: readonly SteelMemberSettings[]
 }
 
 export interface DesignCase {

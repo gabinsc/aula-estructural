@@ -51,3 +51,7 @@ Las líneas de influencia evalúan una respuesta fija al mover una unidad o un t
 ### Hito 8.1 · Fundamentos de diseño estructural
 
 El módulo independiente de Diseño consume esfuerzos vigentes y evalúa la tensión normal elástica por sección y por barra. Los parámetros resistentes declarados y los límites explícitos se guardan en JSON v4. Las próximas etapas de diseño podrán incorporar combinaciones y verificaciones normativas de acero y concreto. [Fundamentos y aceptación](HITO_8_1_DESIGN_FOUNDATIONS.md)
+
+### Hito 8.2 · Verificaciones educativas de acero
+
+El módulo aplica un subconjunto documentado de E.090 con LRFD y ASD separados. Calcula resistencias y compara demandas del caso vigente cuando existe una declaración compatible. JSON v5 añade los parámetros confirmados por barra. Quedan para incrementos posteriores las combinaciones automáticas, las ramas generales de pandeo y la comprobación integral de diseño. [Fórmulas, alcance y aceptación](HITO_8_2_STEEL_DESIGN.md)

@@ -14,7 +14,7 @@ import type { ParametricSection, SectionGeometry } from '../geometry/sections'
 import type { DesignSettings } from '../design/contracts'
 import { readDesignSettings } from '../design/settings'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 export interface ProjectView {
   readonly grid: boolean
@@ -214,7 +214,7 @@ function parseLibrary(raw: unknown): Library {
     ...(defaultSectionId ? { defaultSectionId } : {}) }
 }
 
-export function parseModel(raw: unknown, version?: 1 | 2 | 3 | 4): Structure {
+export function parseModel(raw: unknown, version?: 1 | 2 | 3 | 4 | 5): Structure {
   const data = object(raw, 'Modelo')
   const schemaVersion = version ?? (data.library === undefined ? 2 : SCHEMA_VERSION)
   const nodes = list(data.nodes, 'Nudos').map((rawNode): StructuralNode => {
@@ -272,8 +272,8 @@ export function parseModel(raw: unknown, version?: 1 | 2 | 3 | 4): Structure {
 export function readProject(raw: unknown): ProjectDocument {
   const value = object(raw, 'Proyecto')
   const schemaVersion = value.schemaVersion
-  ensure(schemaVersion === 1 || schemaVersion === 2 || schemaVersion === 3 || schemaVersion === SCHEMA_VERSION,
-    'Versión de esquema incompatible. Se admiten las versiones 1, 2, 3 y 4.')
+  ensure(schemaVersion === 1 || schemaVersion === 2 || schemaVersion === 3 || schemaVersion === 4 || schemaVersion === SCHEMA_VERSION,
+    'Versión de esquema incompatible. Se admiten las versiones 1, 2, 3, 4 y 5.')
   const id = text(value.id, 'ID de proyecto')
   ensure(ID_PATTERN.test(id), 'El ID de proyecto no es válido.')
   const createdAt = date(value.createdAt, 'Fecha de creación')
@@ -285,7 +285,7 @@ export function readProject(raw: unknown): ProjectDocument {
     'Las preferencias de vista no son válidas.')
   return { schemaVersion: SCHEMA_VERSION, id, name: projectName(text(value.name, 'Nombre de proyecto')),
     createdAt, modifiedAt, model: parseModel(value.model, schemaVersion), view: { grid, dimensions },
-    ...(schemaVersion === SCHEMA_VERSION && value.design !== undefined && { design: readDesignSettings(value.design) }) }
+    ...(schemaVersion >= 4 && value.design !== undefined && { design: readDesignSettings(value.design, schemaVersion === SCHEMA_VERSION) }) }
 }
 
 export function importProject(json: string): ProjectDocument {

@@ -11,6 +11,8 @@ import type { SectionCut } from '../../modeler/results/diagramFields'
 import { Icon } from '../Icon'
 import { ResultTable, resultNumber } from '../results/ResultTable'
 import { CriterionForm, MaterialForm, ORIGIN_LABELS } from './DesignSettingsForms'
+import { SteelPanel } from './SteelPanel'
+import { steelMemberRevision } from '../../design/steel/settings'
 
 type Solved = Extract<AnalysisResult, { ok: true }>
 type PanelProps = {
@@ -22,6 +24,9 @@ type PanelProps = {
   analysisRevision: string
   analysis?: Solved
   analysisStatus: string
+  learning: boolean
+  expanded: boolean
+  toggleExpanded: () => void
   cut?: SectionCut
   settings: DesignSettings
   updateSettings: (settings: DesignSettings) => void
@@ -34,7 +39,7 @@ const fiberName: Record<DesignStress['fiber'], string> = { axial: 'Aporte axial'
 const sideName = (side: SectionCut['side']) => side === 'left' ? 'Izquierda' : 'Derecha'
 
 function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loadCaseId, physicalRevision, analysisRevision,
-  settings, updateSettings, showCut }: PanelProps & { readonly selectedBar: string }) {
+  settings, updateSettings, showCut, learning, steel }: PanelProps & { readonly selectedBar: string; readonly steel: boolean }) {
   const L = loadBarGeometry(model, barId)?.length ?? 0
   const [station, setStation] = useState<string>()
   const [side, setSide] = useState<SectionCut['side']>()
@@ -47,6 +52,9 @@ function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loa
   const catalog = catalogOf(model)
   const material = catalog.materials.find(item => item.id === result.materialId)
   const linked = catalog.sections.find(item => item.id === result.sectionId)
+  const assignment = model.mechanics.assignments.find(item => item.barId === barId)
+  const barResult = result.actions && analysis?.bars.find(item => item.barId === barId)
+  const steelSettings = settings.steel?.find(item => item.barId === barId) ?? { barId, method: 'LRFD' as const }
   const { section, actions, extremes, service, designCase } = result
   return <>
     <section className="result-section" aria-label="Datos de la barra">
@@ -87,7 +95,7 @@ function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loa
         {section && <p className="result-hint">Eje centroidal {section.axis} · I = {resultNumber(section.I, 1e8)} cm⁴
           {' '}· c⁺ = {resultNumber(section.positive.c, 1e3)} mm · c⁻ = {resultNumber(section.negative.c, 1e3)} mm
           {' '}· S⁺ = {resultNumber(section.positive.S, 1e6)} cm³ · S⁻ = {resultNumber(section.negative.S, 1e6)} cm³</p>}
-        <h3>Tensiones nominales</h3>
+        {!steel && <><h3>Tensiones nominales</h3>
         <p className="result-hint">{section ? 'σ = N/A − M·y/I. Tracción positiva y compresión negativa.' : 'σN = N/A. Tracción positiva y compresión negativa.'}</p>
         <ResultTable label="Tensiones de la sección" headings={['Fibra', 'σN (MPa)', 'σM (MPa)', 'σ (MPa)']}
           rows={result.stresses.map(item => ({ id: item.fiber,
@@ -102,9 +110,15 @@ function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loa
           })} />}
         {service && <p className="result-hint">En esta estación · desplazamiento y local {resultNumber(service.local, 1e3)} mm
           {' '}· flecha relativa a la cuerda {resultNumber(service.relative, 1e3)} mm</p>}
+        </>}
       </>}
     </section>
-    <section className="result-section" aria-label="Verificaciones de diseño">
+    {steel ? <SteelPanel design={result} settings={steelSettings} memberRevision={steelMemberRevision(model, barId)}
+      learning={learning} section={linked} E={assignment?.E}
+      frame={barResult && barResult.kind === 'frame2d' ? barResult : undefined}
+      selectStation={(position, stationSide) => { setStation(String(position)); setSide(stationSide) }}
+      save={item => updateSettings({ ...settings, steel: [...(settings.steel ?? []).filter(old => old.barId !== item.barId), item] })} />
+      : <section className="result-section" aria-label="Verificaciones de diseño">
       <h3>Verificaciones del criterio</h3>
       <p>{result.criterion ? result.criterion.name : 'Sin criterio de límites declarado.'}</p>
       {result.checks.length > 0 && <ResultTable label="Comparaciones con el criterio"
@@ -117,26 +131,34 @@ function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loa
           return { id: item.kind, cells: [label, `${resultNumber(item.value, scale)} ${unit}`, `${resultNumber(item.limit, scale)} ${unit}`,
             item.status === 'within-limit' ? 'Dentro del límite declarado' : 'Excede el límite declarado'] }
         })} />}
-    </section>
+    </section>}
   </>
 }
 
 export default function DesignPanel(props: PanelProps) {
   const { model, selectedBar, selectBar, analysisStatus, close, settings, updateSettings } = props
+  const [steel, setSteel] = useState(false)
   return <aside id="structural-design" className="results-panel" aria-label="Diseño estructural">
     <header className="results-heading">
       <div><h2>Diseño estructural</h2><p role="status" aria-label="Estado del análisis para diseño">{analysisStatus}</p></div>
-      <button className="icon-button" aria-label="Cerrar diseño" title="Cerrar diseño" type="button" onClick={close}><Icon name="close" size={18} /></button>
+      <div className="result-heading-controls">
+        <button className="icon-button" aria-label={props.expanded ? 'Restaurar panel de diseño' : 'Ampliar panel de diseño'}
+          type="button" aria-pressed={props.expanded} onClick={props.toggleExpanded}><Icon name="fit" size={18} /></button>
+        <button className="icon-button" aria-label="Cerrar diseño" title="Cerrar diseño" type="button" onClick={close}><Icon name="close" size={18} /></button>
+      </div>
     </header>
     <div className="results-body">
-      <p className="result-hint">Evaluación elástica de una sección homogénea sin fisuración. Las comparaciones corresponden únicamente a los límites declarados.</p>
-      <p className="result-hint">Verificaciones normativas reservadas para etapas posteriores.</p>
+      <div className="result-controls" role="group" aria-label="Tipo de diseño">
+        <button type="button" className="button secondary" aria-pressed={!steel} onClick={() => setSteel(false)}>Tensiones nominales</button>
+        <button type="button" className="button secondary" aria-pressed={steel} onClick={() => setSteel(true)}>Acero</button>
+      </div>
+      {!steel && <p className="result-hint">Evaluación elástica de una sección homogénea sin fisuración. Las comparaciones corresponden únicamente a los límites declarados.</p>}
       <label className="result-field">Barra de diseño<select value={selectedBar ?? ''} onChange={event => selectBar(event.target.value)}>
         <option value="">Seleccionar…</option>{model.bars.map(bar => <option key={bar.id} value={bar.id}>{bar.id} · {bar.label}</option>)}
       </select></label>
-      <CriterionForm key={settings.criterion ? 'active' : 'empty'} saved={settings.criterion}
-        update={criterion => updateSettings({ ...settings, criterion })} />
-      {selectedBar ? <MemberDesign key={selectedBar} {...props} selectedBar={selectedBar} />
+      {!steel && <CriterionForm key={settings.criterion ? 'active' : 'empty'} saved={settings.criterion}
+        update={criterion => updateSettings({ ...settings, criterion })} />}
+      {selectedBar ? <MemberDesign key={selectedBar} {...props} selectedBar={selectedBar} steel={steel} />
         : <p className="result-hint">Selecciona una barra del lienzo o de la lista.</p>}
     </div>
   </aside>

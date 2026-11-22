@@ -65,7 +65,7 @@ Las operaciones puras de portapapeles, división e inversión producen un docume
 
 ## Persistencia local
 
-`src/projects/document.ts` valida el documento y migra los esquemas 1 a 3 a v4. IndexedDB conserva la versión 1 de la base y sus almacenes. Los registros previos se validan y migran en memoria al leer. Al guardar se escribe v4 con la revisión esperada. La biblioteca forma parte de `Structure` y del historial. El documento guarda adicionalmente las resistencias declaradas y el criterio de diseño fuera de `Structure`. Importar valida la geometría, las referencias y la configuración de diseño antes de guardar y asigna un ID nuevo si el original está ocupado. La cámara, UCS, Snap, caso de cálculo, selección, historial y resultados pertenecen a la sesión. [Biblioteca y migración v3](HITO_5_2_MATERIAL_LIBRARY.md) · [Diseño y migración v4](HITO_8_1_DESIGN_FOUNDATIONS.md)
+`src/projects/document.ts` valida el documento y migra los esquemas 1 a 4 a v5. IndexedDB conserva la versión 1 de la base y sus almacenes. Los registros previos se validan y migran en memoria al leer. Al guardar se escribe v5 con la revisión esperada. La biblioteca forma parte de `Structure` y del historial. El documento guarda las resistencias declaradas, el criterio elástico y los parámetros de acero por barra fuera de `Structure`. Importar valida la geometría, las referencias y la configuración de diseño antes de guardar y asigna un ID nuevo si el original está ocupado. La cámara, UCS, Snap, caso de cálculo, selección, historial, clasificación de demanda y resultados pertenecen a la sesión. [Diseño elástico v4](HITO_8_1_DESIGN_FOUNDATIONS.md) · [Acero y migración v5](HITO_8_2_STEEL_DESIGN.md)
 
 ## Integración de análisis
 

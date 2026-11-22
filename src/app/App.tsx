@@ -285,7 +285,7 @@ function Workspace({ session, storageWarning, activate }: {
       </div>
     </header>
     <p className="educational-notice">Uso educativo. No utilizar para diseño profesional.</p>
-    <div className={resultsOpen || designOpen ? `workarea with-results${resultsOpen && resultsExpanded ? ' results-expanded' : ''}` : 'workarea'}>
+    <div className={resultsOpen || designOpen ? `workarea with-results${resultsExpanded ? ' results-expanded' : ''}` : 'workarea'}>
       <Tools current={tools.find(item => item.id === interaction.tool)?.id ?? null} setTool={tool => dispatch({ type: 'tool', tool })}
         loadPreset={interaction.tool === 'load' ? interaction.preset : undefined} chooseLoad={preset => dispatch({ type: 'load-preset', preset })}
         supportPreset={interaction.tool === 'support' ? interaction.preset : undefined} chooseSupport={preset => dispatch({ type: 'support-preset', preset })}
@@ -329,8 +329,9 @@ function Workspace({ session, storageWarning, activate }: {
           <p role="status">Cargando diseño…</p>
         </aside>}><DesignPanel model={model} selectedBar={selectedBar} projectId={session.document.id}
           loadCaseId={loadCase.id} physicalRevision={analysis.physicalRevision} analysisRevision={analysis.revision}
-          analysis={solved} analysisStatus={method === 'influence' ? 'Selecciona un método de caso estático' : analysisStatus} cut={cut}
+          analysis={solved} analysisStatus={method === 'influence' ? 'Selecciona un método de caso estático' : analysisStatus} cut={cut} learning={learning}
           settings={designSettings ?? EMPTY_DESIGN} updateSettings={setDesignSettings}
+          expanded={resultsExpanded} toggleExpanded={() => setResultsExpanded(value => !value)}
           selectBar={barId => {
             if (barId) selectResult({ kind: 'bar', id: barId })
             else dispatch({ type: 'select', items: [] })

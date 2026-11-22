@@ -1,4 +1,5 @@
 import type { DesignCriterion, DesignMaterialProperties, DesignSettings } from './contracts'
+import { readSteelMembers } from './steel/settings'
 
 export const EMPTY_DESIGN: DesignSettings = { materials: [] }
 
@@ -53,10 +54,11 @@ export function readDesignCriterion(raw: unknown): DesignCriterion {
     ...(service && { service }) }
 }
 
-export function readDesignSettings(raw: unknown): DesignSettings {
+export function readDesignSettings(raw: unknown, includeSteel = true): DesignSettings {
   const value = record(raw, 'Configuración de diseño')
   if (!Array.isArray(value.materials)) throw new Error('Las propiedades resistentes deben estar en una lista.')
   const materials = value.materials.map(readDesignMaterial)
   if (new Set(materials.map(item => item.materialId)).size !== materials.length) throw new Error('Hay resistencias duplicadas para un material.')
-  return { materials, ...(value.criterion === undefined ? {} : { criterion: readDesignCriterion(value.criterion) }) }
+  return { materials, ...(value.criterion === undefined ? {} : { criterion: readDesignCriterion(value.criterion) }),
+    ...(includeSteel && value.steel !== undefined ? { steel: readSteelMembers(value.steel) } : {}) }
 }

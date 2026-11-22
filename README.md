@@ -84,7 +84,7 @@ Los resultados se marcan como desactualizados cuando cambia el modelo físico o 
 
 Abre **Proyectos** en la barra superior para crear, guardar, renombrar, abrir, duplicar y eliminar proyectos. Los cambios confirmados se autoguardan en IndexedDB. El indicador muestra si hay cambios pendientes, confirmación de guardado o un error. Al abrir o recuperar un proyecto, se inicia un historial de sesión nuevo.
 
-**Exportar JSON** crea una copia de esquema 4 con las propiedades mecánicas, la biblioteca y los datos de diseño declarados. **Importar JSON** valida todo el documento, conserva el ID si está disponible y crea un ID nuevo si ya existe localmente. La versión 1 se migra con propiedades mecánicas pendientes y las versiones 2 y 3 conservan los datos existentes. Los datos locales dependen del origen web y del perfil de navegador. [Pórtico con apoyos y cargas](examples/portico.json) · [Documento vacío](examples/vacio.json)
+En este incremento local, **Exportar JSON** crea una copia de esquema 5 con la mecánica, la biblioteca y los datos de diseño confirmados. **Importar JSON** valida todo el documento, admite los esquemas 1 a 5 y crea un ID nuevo si ya existe localmente. Los datos locales dependen del origen web y del perfil de navegador. [Pórtico con apoyos y cargas](examples/portico.json) · [Documento vacío](examples/vacio.json)
 
 En **Biblioteca de materiales y secciones** puedes crear materiales y dibujar secciones con dimensiones numéricas. En el Inspector, **Asignación desde biblioteca** permite confirmar material, sección y eje de flexión. [Biblioteca](docs/HITO_5_2_MATERIAL_LIBRARY.md) · [Editor de secciones](docs/HITO_5_3_SECTION_EDITOR.md)
 
