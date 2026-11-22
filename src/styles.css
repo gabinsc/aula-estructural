@@ -557,13 +557,15 @@ kbd {
   .statusbar { position: sticky; bottom: 0; z-index: 2; min-height: 41px; gap: 7px; padding: 5px 8px; }
   .status-caption, .status-button-text { display: none; }
 }
-@media (max-width: 470px) {
+@media (max-width: 640px) {
   .topbar { gap: 5px; padding-inline: 8px; }
   .top-right { gap: 4px; }
   .brand { gap: 6px; font-size: .91rem; }
   .brand-mark { width: 31px; height: 31px; }
   .mode button { font-size: .75rem; gap: 4px; padding-inline: 6px; }
   .mode svg { display: none; }
+}
+@media (max-width: 470px) {
   .drawing-prompt { top: 82px; left: 33px; font-size: .75rem; }
   .drawing-prompt kbd { display: none; }
   .view-tools { top: 34px; right: 6px; }
@@ -700,7 +702,7 @@ kbd {
   .brand-name { display: none; }
   .brand-mark { display: grid; }
 }
-@media (max-width: 360px) {
+@media (max-width: 440px) {
   .workspace { grid-template-rows: auto auto minmax(0, 1fr) auto; }
   .topbar { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 6px 8px; }
   .top-right { flex-wrap: wrap; gap: 4px; }

@@ -1,6 +1,6 @@
 # Publicación de Aula Estructural · Beta 0.2
 
-La segunda beta incluye los métodos académicos del Hito 7, su auditoría matemática y las consultas elásticas nominales del Hito 8.1. Su etiqueta es `v0.2.0-beta.1` y usa el sitio existente. [Aula Estructural](https://gabinsc.github.io/aula-estructural/) · [Alcance de diseño](HITO_8_1_DESIGN_FOUNDATIONS.md)
+La segunda beta incluye los métodos académicos del Hito 7, su auditoría matemática y las consultas elásticas nominales del Hito 8.1. Su etiqueta de despliegue es `v0.2.0-beta.2` y usa el sitio existente. El primer candidato detectó un desborde de la barra en Chromium para Linux y quedó sin desplegar. [Aula Estructural](https://gabinsc.github.io/aula-estructural/) · [Alcance de diseño](HITO_8_1_DESIGN_FOUNDATIONS.md)
 
 ## Primera publicación
 
