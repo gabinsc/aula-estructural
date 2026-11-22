@@ -94,8 +94,8 @@ function prepare(input: AnalysisInput, allowFrames: boolean): Preparation {
   }
   const rotationalNodes = new Set<string>()
   for (const bar of model.bars) if (assignments.get(bar.id)?.kind === 'frame2d') {
-    rotationalNodes.add(bar.startId)
-    rotationalNodes.add(bar.endId)
+    if (!bar.releaseI) rotationalNodes.add(bar.startId)
+    if (!bar.releaseJ) rotationalNodes.add(bar.endId)
   }
   for (const node of nodes) {
     const x = dofs.length
@@ -139,7 +139,10 @@ function prepare(input: AnalysisInput, allowFrames: boolean): Preparation {
       unit: { x: (end.x - start.x) / length, y: (end.y - start.y) / length } }
     const [xi, yi, ri] = dofByNode.get(start.id)!
     const [xj, yj, rj] = dofByNode.get(end.id)!
-    if (assignment.kind === 'truss2d') bars.push({ ...assignment, ...base, dofIndices: [xi, yi, xj, yj] })
+    if (assignment.kind === 'truss2d') {
+      if (bar.releaseI || bar.releaseJ) error('INVALID_ASSIGNMENT', 'Las liberaciones de momento requieren una barra de pórtico.', ids)
+      bars.push({ ...assignment, ...base, dofIndices: [xi, yi, xj, yj] })
+    }
     else {
       const EI = assignment.E * assignment.I
       const k = frameLocalStiffness({ ...base, EI })
@@ -147,7 +150,8 @@ function prepare(input: AnalysisInput, allowFrames: boolean): Preparation {
         error('INVALID_ASSIGNMENT', 'EI y los coeficientes de flexión deben ser positivos y representables en Float64.', ids)
         continue
       }
-      bars.push({ ...assignment, ...base, EI, dofIndices: [xi, yi, ri!, xj, yj, rj!] })
+      bars.push({ ...assignment, ...base, EI, releaseI: bar.releaseI, releaseJ: bar.releaseJ,
+        dofIndices: [xi, yi, bar.releaseI ? -1 : ri!, xj, yj, bar.releaseJ ? -1 : rj!] })
     }
   }
 
@@ -214,7 +218,7 @@ function prepare(input: AnalysisInput, allowFrames: boolean): Preparation {
     if (!nodeById.has(load.nodeId) || !Number.isFinite(Math.hypot(load.force.x, load.force.y)) || !Number.isFinite(load.moment)) {
       error('INVALID_MODEL', 'Carga nodal con nudo inexistente o magnitud inválida.', ids)
     } else if (load.moment !== 0 && !rotationalNodes.has(load.nodeId)) {
-      error('INACTIVE_ROTATION', 'Se aplicó un momento a un nudo sin grado de giro activo.', ids)
+      error('INACTIVE_ROTATION', 'Se aplicó un momento a un nudo sin grado de giro activo ni extremo rígido que lo reciba.', ids)
     } else {
       loads.push({ kind: 'nodal', id: load.id, nodeId: load.nodeId, force: { ...load.force }, moment: load.moment })
     }

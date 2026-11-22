@@ -1,5 +1,5 @@
 import type { AnalysisDiagnostic, AnalysisInput, AnalysisResult, BarResult, ComponentChecks, ComponentTrace, ElementTrace, PreparedNodalLoad, PreparedTrussModel, SupportTrace, TrussAnalysisResult } from './contracts'
-import { frameLocalStiffness, frameTransformation, recoverFrame } from './frame'
+import { condensedFrameStiffness, frameTransformation, recoverFrame } from './frame'
 import { CONDITION_WARNING, solvePositiveDefinite } from './linear'
 import { prepareAnalysis, prepareTruss } from './prepare'
 import type { Preparation } from './prepare'
@@ -28,7 +28,7 @@ function solve(input: AnalysisInput, prepared: Preparation, engineVersion: strin
   const fail = (diagnostic: Omit<AnalysisDiagnostic, 'severity'>): AnalysisResult => ({
     ...provenance, ok: false, diagnostics: [...diagnostics, { ...diagnostic, severity: 'error' }],
   })
-  const { K, F, equivalentLocal, equivalentGlobal, equivalentLoads, memberLoads } = assembleModel(model, input.includeTrace)
+  const { K, F, equivalentLocal, condensedLocal, equivalentGlobal, equivalentLoads, memberLoads } = assembleModel(model, input.includeTrace)
   if (!K.every(Number.isFinite) || !F.every(Number.isFinite)) {
     return fail({ code: 'NUMERICAL_FAILURE', message: 'El ensamblaje global supera el rango de Float64.' })
   }
@@ -141,8 +141,8 @@ function solve(input: AnalysisInput, prepared: Preparation, engineVersion: strin
         T: Float64Array.of(c, s, 0, 0, 0, 0, c, s) }
     }
     return {
-      ...id, I: bar.I, EI: bar.EI, K: frameGlobalStiffness(bar), localK: frameLocalStiffness(bar), T: frameTransformation(bar.unit),
-      equivalentLocal: equivalentLocal.get(barId), equivalentGlobal: equivalentGlobal.get(barId),
+      ...id, I: bar.I, EI: bar.EI, K: frameGlobalStiffness(bar), localK: condensedFrameStiffness(bar), T: frameTransformation(bar.unit),
+      equivalentLocal: condensedLocal.get(barId), equivalentGlobal: equivalentGlobal.get(barId),
     }
   }) } : undefined
   return { ...provenance, ok: true, diagnostics, dofs: model.dofs, loads: model.loads, checks,

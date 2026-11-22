@@ -37,6 +37,27 @@ describe('Subtipos de herramientas', () => {
 })
 
 describe('Historial de ediciones estructurales', () => {
+  it('inserta una rótula como cambio único, conserva los extremos externos y los invierte con sus barras', () => {
+    const baseline = go(barStart, start, end, { type: 'mechanics', barIds: ['B1'], patch: { kind: 'frame2d' } },
+      { type: 'moment-releases', barId: 'B1', releaseI: true, releaseJ: false })
+    const active = editWithHistory(baseline, { type: 'split-start', barId: 'B1', hinge: true })
+    expect(active.past).toBe(baseline.past)
+    const cut = editWithHistory(active, { type: 'split-bar', barId: 'B1', s: 1.5 })
+    const [first, second] = cut.editor.model.bars
+    expect(first).toMatchObject({ releaseI: true, releaseJ: true, endId: second?.startId })
+    expect(second).toMatchObject({ releaseI: true })
+    expect(second?.releaseJ).toBeUndefined()
+    expect(cut.past.length).toBe(baseline.past.length + 1)
+    const undo = editWithHistory(cut, { type: 'undo' })
+    expect(undo.editor.model).toBe(baseline.editor.model)
+    expect(editWithHistory(undo, { type: 'redo' }).editor.model).toBe(cut.editor.model)
+    const inverted = editWithHistory(cut, { type: 'reverse-bar', barId: second!.id })
+    expect(inverted.editor.model.bars[1]).toMatchObject({ startId: second!.endId, releaseJ: true })
+    expect(inverted.editor.model.bars[1]?.releaseI).toBeUndefined()
+    const rigidCut = editWithHistory(baseline, { type: 'split-bar', barId: 'B1', s: 1.5 })
+    expect(rigidCut.editor.model.bars[0]?.releaseJ).toBeUndefined()
+    expect(rigidCut.editor.model.bars[1]?.releaseI).toBeUndefined()
+  })
   it('deshace y rehace el pegado, la división y la inversión como transacciones completas', () => {
     const baseline = go(barStart, start, end, { type: 'copy' }, { type: 'paste-start' })
     const pasted = editWithHistory(baseline, { type: 'coordinates', mode: 'relative', first: 2, second: 3 })

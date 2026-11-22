@@ -50,6 +50,15 @@ export function StructureLayer({ model, selection, hover, camera, viewport, prev
       return <g className={`member${selected ? ' is-selected' : ''}${pointed ? ' is-hovered' : ''}`} key={bar.id} data-bar-id={bar.id}>
         <line className="member-halo" x1={a.x} x2={b.x} y1={a.y} y2={b.y} />
         <line className="member-line" x1={a.x} x2={b.x} y1={a.y} y2={b.y} />
+        {([['i', a, b, bar.releaseI], ['j', b, a, bar.releaseJ]] as const)
+          .map(([side, tip, other, released]) => {
+            if (!released) return null
+            const fraction = Math.min(.28, 12 / Math.hypot(other.x - tip.x, other.y - tip.y))
+            return <circle key={side} data-release={side} className="member-release"
+              cx={tip.x + (other.x - tip.x) * fraction} cy={tip.y + (other.y - tip.y) * fraction} r={4.5}>
+              <title>{bar.id} · giro liberado en {side}</title>
+            </circle>
+          })}
         <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 11} textAnchor="middle">{bar.label}</text>
       </g>
     })}

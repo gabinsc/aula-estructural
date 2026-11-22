@@ -88,7 +88,7 @@ test('diseño consume el corte vigente y recupera resistencias y criterio median
   const path = await (await download).path()
   const json = await readFile(path!, 'utf8')
   const exported = JSON.parse(json)
-  expect(exported.schemaVersion).toBe(5)
+  expect(exported.schemaVersion).toBe(6)
   expect(exported.design.materials[0].fy).toBe(275e6)
   expect(exported.design.criterion).toMatchObject({ tension: 2e6, compression: 3e6,
     service: { limit: .0001, reference: 'relative-chord' } })

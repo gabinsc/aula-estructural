@@ -27,7 +27,7 @@ describe('Documento de proyecto versionado', () => {
     const source = readFileSync(new URL(`../../examples/${file}`, import.meta.url), 'utf8')
     const original = JSON.parse(source)
     expect(original.schemaVersion).toBe(1)
-    expect(importProject(source)).toEqual({ ...original, schemaVersion: 5,
+    expect(importProject(source)).toEqual({ ...original, schemaVersion: 6,
       model: { ...original.model, mechanics: { version: 1, assignments: [] }, library: DEFAULT_LIBRARY } })
   })
   it('admite un modelo vacío y conserva íntegro el modelo físico de un JSON completo', () => {
@@ -42,7 +42,7 @@ describe('Documento de proyecto versionado', () => {
 
   it('rechaza JSON corrupto, versión incompatible y números no finitos', () => {
     expect(() => importProject('{?')).toThrow('JSON válido')
-    expect(() => readProject({ ...project(), schemaVersion: 6 })).toThrow('Versión de esquema')
+    expect(() => readProject({ ...project(), schemaVersion: 7 })).toThrow('Versión de esquema')
     const data = project()
     const [node] = data.model.nodes
     expect(() => readProject({ ...data, model: { ...data.model, nodes: [{ ...node, x: Infinity }] } })).toThrow('finito')

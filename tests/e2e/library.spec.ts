@@ -103,7 +103,7 @@ test('migra v2, asigna en lote, compara el análisis y recupera la biblioteca en
   }
   await importProject(page, fixture)
   const migrated = await exportProject(page)
-  expect(migrated.schemaVersion).toBe(5)
+  expect(migrated.schemaVersion).toBe(6)
   expect(migrated.model.mechanics).toEqual(fixture.model.mechanics)
   expect(migrated.model.nodes).toEqual(fixture.model.nodes)
   const solve = async () => {

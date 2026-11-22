@@ -76,6 +76,70 @@ function failed(result: AnalysisResult, code: string, evidence: Record<string, u
 }
 
 describe('Oráculos analíticos de pórtico plano', () => {
+  it('Gerber: respeta el equilibrio por tramos y omite el giro nodal de la rótula', () => {
+    const geometry = structure([[0, 0], [4, 0], [6, 0], [10, 0]], [[1, 2], [2, 3], [3, 4]])
+    const model: Structure = { ...geometry, bars: geometry.bars.map((bar, i) => ({
+      ...bar, ...(i === 1 && { releaseJ: true }), ...(i === 2 && { releaseI: true }),
+    })), supports: [PIN, ROLL, { ...ROLL, nodeId: 'N4' }],
+      loads: [{ id: 'C1', kind: 'point', barId: 'B3', s: 2, frame: 'global', force: { x: 0, y: -12_000 } }] }
+    const result = solved(request(model))
+    expect(result.displacements.find(state => state.nodeId === 'N3')?.rotation).toBeUndefined()
+    for (const [i, expected] of [-3000, 9000, 6000].entries()) si(result.reactions[i]!.y, expected)
+    const [left, overhang, right] = result.bars as readonly FrameResult[]
+    si(evaluateFrameSection(left!, 4).M, -12_000)
+    si(overhang!.endForces[5], 0)
+    si(right!.endForces[2], 0)
+    si(overhang!.localDisplacements[4], right!.localDisplacements[1], 1e-10)
+    expect(overhang!.localDisplacements[5]).not.toBeCloseTo(right!.localDisplacements[2], 7)
+    balanced(result)
+  })
+
+  it('dos semivigas empotradas conservan la flecha compartida y recuperan giros opuestos', () => {
+    const geometry = structure([[0, 0], [4, 0], [8, 0]], [[1, 2], [2, 3]])
+    const result = solved(request({ ...geometry, bars: [
+      { ...geometry.bars[0]!, releaseJ: true }, { ...geometry.bars[1]!, releaseI: true },
+    ], supports: [FIX, { ...FIX, nodeId: 'N3' }], loads: [nodal('C1', 'N2', 0, -12_000)] }))
+    result.reactions.forEach(reaction => si(reaction.y, 6000))
+    si(result.displacements[1]!.y, -6000 * 4 ** 3 / (3 * E * I), 1e-10)
+    const [left, right] = result.bars as readonly FrameResult[]
+    si(left!.localDisplacements[5], -6000 * 4 ** 2 / (2 * E * I), 1e-10)
+    si(right!.localDisplacements[2], 6000 * 4 ** 2 / (2 * E * I), 1e-10)
+    balanced(result)
+  })
+
+  it('libera la viga de un pórtico sin dejar libre la columna que recibe el momento nodal', () => {
+    const geometry = structure([[0, 0], [0, 3], [4, 3]], [[1, 2], [2, 3]])
+    const result = solved(request({ ...geometry, bars: [geometry.bars[0]!, { ...geometry.bars[1]!, releaseI: true }],
+      supports: [FIX, { ...ROLL, nodeId: 'N3' }], loads: [
+        { id: 'C1', kind: 'point', barId: 'B2', s: 2, frame: 'global', force: { x: 0, y: -12_000 } },
+        nodal('C2', 'N2', 0, 0, 9000),
+      ] }))
+    const member = result.bars[1] as FrameResult
+    si(member.endForces[2], 0)
+    si(evaluateFrameSection(member, 2).M, 12_000)
+    for (const reaction of result.reactions) si(reaction.y, 6000)
+    si(result.reactions[0]!.moment!, -9000)
+    balanced(result)
+  })
+
+  it('condensa las dos caras bajo carga distribuida, rechaza momentos nodales huérfanos y mecanismos', () => {
+    const q = { x: 0, y: -5000 }
+    const base = beam(4, [PIN, ROLL], { id: 'C1', kind: 'distributed', barId: 'B1', s0: 0, s1: 4,
+      frame: 'global', profile: 'uniform', q0: q, q1: q })
+    const model: Structure = { ...base, bars: [{ ...base.bars[0]!, releaseI: true, releaseJ: true }] }
+    const result = solved(request(model))
+    result.reactions.forEach(reaction => si(reaction.y, 10_000))
+    si(evaluateFrameSection(frame(result), 2).v, -5 * 5000 * 4 ** 4 / (384 * E * I), 1e-10)
+    si(frame(result).endForces[2], 0)
+    si(frame(result).endForces[5], 0)
+    failed(solveAnalysis(request({ ...model, loads: [nodal('C1', 'N1', 0, 0, 1)] })), 'INACTIVE_ROTATION')
+    const geometry = structure([[0, 0], [4, 0], [8, 0]], [[1, 2], [2, 3]])
+    const mechanism: Structure = { ...geometry, bars: [
+      { ...geometry.bars[0]!, releaseJ: true }, { ...geometry.bars[1]!, releaseI: true },
+    ], supports: [PIN, { ...ROLL, nodeId: 'N3' }] }
+    failed(solveAnalysis(request(mechanism)), 'UNSTABLE_OR_SINGULAR')
+    balanced(result)
+  })
   it('E · viga con carga central: flecha exacta y salto de cortante', () => {
     const result = solved(request(beam(6, [PIN, ROLL], point(3, 0, -12_000))))
     for (const reaction of result.reactions) si(reaction.y, 6000)

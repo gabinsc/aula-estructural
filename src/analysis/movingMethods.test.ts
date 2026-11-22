@@ -3,6 +3,7 @@ import type { StructuralLoad } from '../domain/load'
 import type { Structure } from '../domain/structure'
 import { EMPTY_STRUCTURE } from '../domain/structure'
 import { solveCross } from './cross'
+import { solveVirtualWork } from './virtualWork'
 import { buildInfluencePath, solveInfluence } from './influence'
 import type { InfluenceOptions, InfluenceTarget } from './influence'
 import { curveAt, trainEnvelope, trainValue } from './influenceCurve'
@@ -44,6 +45,31 @@ function close(a: number, b: number, abs = 1e-8) {
 }
 
 describe('Líneas de influencia y ejes móviles', () => {
+  it('Gerber: las ordenadas de reacción reproducen el equilibrio del tramo suspendido', () => {
+    const input = model([[0, 0], [4, 0], [6, 0], [10, 0]], [[1, 2], [2, 3], [3, 4]], [pin, roller('N2'), roller('N4')])
+    const gerber: AnalysisInput = { ...input, model: { ...input.model, bars: input.model.bars.map((bar, i) => ({
+      ...bar, ...(i === 1 && { releaseJ: true }), ...(i === 2 && { releaseI: true }),
+    })) } }
+    for (const [node, atSix, atEight] of [['N1', -.5, -.25], ['N2', 1.5, .75], ['N4', 0, .5]] as const) {
+      const line = influence(gerber, reaction(node), { bars: ['B1', 'B2', 'B3'] })
+      close(line.at(8), atEight)
+      close(line.at(6), atSix)
+    }
+  })
+
+  it('usa la flecha de la unión en trabajo virtual y diagnostica la consulta de giro en su cara', () => {
+    const initial = model([[0, 0], [4, 0], [8, 0]], [[1, 2], [2, 3]], [fixed, { ...fixed, nodeId: 'N3' }],
+      [{ id: 'C1', kind: 'nodal', nodeId: 'N2', force: { x: 0, y: -12000 }, moment: 0 }])
+    const input: AnalysisInput = { ...initial, model: { ...initial.model, bars: [
+      { ...initial.model.bars[0]!, releaseJ: true }, { ...initial.model.bars[1]!, releaseI: true },
+    ] } }
+    const translation = solveVirtualWork(input, { target: { kind: 'node', id: 'N2' }, motion: { kind: 'translation', direction: down } })
+    if (!translation.ok) throw new Error(JSON.stringify(translation.result.diagnostics))
+    expect(translation.detail.agrees).toBe(true)
+    close(translation.detail.reference, 6000 * 4 ** 3 / (3 * EI))
+    const rotation = solveVirtualWork(input, { target: { kind: 'section', id: 'B1', s: 4 }, motion: { kind: 'rotation' } })
+    expect(rotation.ok).toBe(false)
+  })
   it('reacciones en ambos apoyos y superposición entre barras invertidas', () => {
     const original = beam()
     for (const s of [0, .27, 1.83, 3, 4.792, 6]) {

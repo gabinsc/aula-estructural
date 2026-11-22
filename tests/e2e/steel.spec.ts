@@ -93,7 +93,7 @@ test('acero separa factores y clasificación, invalida el caso y conserva parám
   const download = page.waitForEvent('download')
   await button(page, 'Exportar JSON').click()
   const json = JSON.parse(await readFile((await (await download).path())!, 'utf8'))
-  expect(json.schemaVersion).toBe(5)
+  expect(json.schemaVersion).toBe(6)
   expect(json.design.steel[0]).toMatchObject({ barId: 'B1', method: 'ASD', grade: 'ASTM A36',
     connection: { kind: 'partial-bolted', netArea: .008, eccentricity: .02, length: .1 } })
   expect(json.design.steel[0]).not.toHaveProperty('demand')

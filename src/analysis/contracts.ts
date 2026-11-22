@@ -59,7 +59,9 @@ interface BarGeometry {
 export type NodeDofs = readonly [number, number] | readonly [number, number, number]
 export type FrameVector = readonly [number, number, number, number, number, number]
 export type PreparedTruss = BarGeometry & TrussAssignment & { readonly dofIndices: readonly [number, number, number, number] }
-export type PreparedFrame = BarGeometry & FrameAssignment & { readonly dofIndices: FrameVector; readonly EI: number }
+/** The i/j rotation slot is −1 when condensed out of the global system. */
+export type PreparedFrame = BarGeometry & FrameAssignment & { readonly dofIndices: FrameVector; readonly EI: number;
+  readonly releaseI?: true; readonly releaseJ?: true }
 export type PreparedBar = PreparedTruss | PreparedFrame
 
 export interface PreparedNodalLoad {

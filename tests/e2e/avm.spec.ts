@@ -65,6 +65,24 @@ async function importInclined(page: Page, { unstable = false, pending = false, a
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 
+test('edita y restaura una rótula en CAD, e inserta una interior en una transacción', async ({ page }) => {
+  await page.goto('./')
+  await importInclined(page)
+  await pick(page, 'B1')
+  await page.getByRole('checkbox', { name: 'Liberar extremo final (j)' }).check()
+  await expect(page.locator('[data-bar-id="B1"] [data-release="j"]')).toHaveCount(1)
+  await analyze(page)
+  await button(page, 'Volver al Inspector').click()
+  await page.getByRole('checkbox', { name: 'Liberar extremo final (j)' }).uncheck()
+  await button(page, 'Insertar rótula interior').click()
+  await button(page, 'Insertar rótula en el punto medio').click()
+  await expect(page.locator('[data-bar-id] [data-release]')).toHaveCount(2)
+  await capture(page, 'rotula-interna')
+  await page.keyboard.press('Control+z')
+  await expect(page.locator('[data-bar-id="B1"]')).toHaveCount(1)
+  await expect(page.locator('[data-bar-id] [data-release]')).toHaveCount(0)
+})
+
 test('dibuja, asigna, calcula y consulta el salto AVM con la tabla sincronizada', async ({ page }) => {
   await page.goto('./')
   await expect(page.getByRole('complementary', { name: 'Inspector' })).toBeVisible()
