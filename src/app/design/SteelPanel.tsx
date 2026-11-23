@@ -7,7 +7,7 @@ import { E090 } from '../../design/steel/e090'
 import { steelDesign } from '../../design/steel/evaluate'
 import { readSteelMember } from '../../design/steel/settings'
 import type { Section } from '../../domain/library'
-import { parseNumber } from '../../modeler/format'
+import { formatResult, parseNumber } from '../../modeler/format'
 import { buildFrameFields } from '../../modeler/results/diagramFields'
 import { ResultTable, resultNumber } from '../results/ResultTable'
 
@@ -84,10 +84,10 @@ function Parameters({ settings, save }: { settings: SteelMemberSettings; save: (
   </details>
 }
 
-export function SteelPanel({ design, section, E, settings, memberRevision, save, learning, frame, selectStation }: {
+export function SteelPanel({ design, section, E, settings, memberRevision, save, learning, decimals, frame, selectStation }: {
   design: DesignResult; section?: Section; E?: number; settings: SteelMemberSettings; save: (settings: SteelMemberSettings) => void
   memberRevision: string
-  learning: boolean; frame?: FrameResult; selectStation: (s: number, side: FrameSection['side']) => void
+  learning: boolean; decimals: number; frame?: FrameResult; selectStation: (s: number, side: FrameSection['side']) => void
 }) {
   const [declaration, setDeclaration] = useState<SteelDemandDeclaration>()
   const { analysisRevision, loadCaseId } = design.designCase
@@ -141,7 +141,9 @@ export function SteelPanel({ design, section, E, settings, memberRevision, save,
     <ResultTable label="Estados límite de acero" headings={['Estado límite', 'Nominal', 'Factor', 'Capacidad', 'Demanda', 'Demanda/capacidad', 'Estado']}
       rows={result.states.map(item => {
         const suffix = item.unit === 'N' ? ' kN' : item.unit === 'N·m' ? ' kN·m' : ''
-        const shown = (value: number | undefined) => value === undefined ? '—' : `${resultNumber(value, item.unit ? .001 : 1)}${suffix}`
+        const scale = item.unit ? .001 : 1
+        const shown = (value: number | undefined) => value === undefined ? '—' :
+          `${learning ? resultNumber(value, scale) : formatResult(value, { scale, decimals })}${suffix}`
         return { id: item.id, cells: [item.title, shown(item.nominal), resultNumber(item.factor), shown(item.capacity),
           shown(item.demand), resultNumber(item.ratio), item.applicable ? item.state === 'pass' && item.ratio === undefined
             ? 'Condición geométrica verificada' : STATUS[item.state] : 'Sin demanda aplicable'] }

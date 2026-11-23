@@ -1,10 +1,6 @@
 import type { ReactNode } from 'react'
 
-export function resultNumber(value: number | undefined, scale = 1) {
-  if (value === undefined) return '—'
-  const shown = value * scale
-  return Number.isFinite(shown) ? String(Number(shown.toPrecision(7))) : 'Fuera de rango'
-}
+export { formatCalculation as resultNumber } from '../../modeler/format'
 
 export function ResultTable({ label, headings, rows }: {
   label: string

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Dispatch, PointerEvent, ReactNode, SetStateAction } from 'react'
 import type { NodeOverlap } from '../../domain/nodeOverlaps'
 import { loadBarGeometry } from '../../domain/load'
@@ -27,6 +27,7 @@ import { AVMLayer, CutReadout } from '../results/AVMLayer'
 import type { Overlay } from '../results/AVMLayer'
 import { AVMLegend } from '../results/AVMControl'
 import { activeEfforts, pickDiagram } from '../results/diagramModel'
+import { arrangeCanvasLabels } from './labelPlacement'
 
 interface CanvasProps {
   editor: Editor
@@ -285,6 +286,10 @@ export function ModelCanvas({
   const promptIcon = interaction.tool === 'reference' ? 'axes' : interaction.tool === 'split' ? 'bar'
     : interaction.tool === 'paste' || interaction.tool === 'edit-node' ? 'move' : interaction.tool
 
+  useLayoutEffect(() => {
+    if (svgRef.current) arrangeCanvasLabels(svgRef.current, overlay.preferences.automaticLabels)
+  }, [camera, viewport, model, selection, dimensions, overlay.preferences, overlay.diagram, overlay.selectedId, editor.loadDraft])
+
   return <section className="canvas-shell" aria-label="Área de dibujo">
     <svg ref={svgRef} className={`model-canvas ${dragging ? 'dragging' : panReady ? 'pan-ready' : drawing ? 'drawing' : ''}`}
       aria-label="Lienzo CAD 2D" tabIndex={0}
@@ -309,7 +314,8 @@ export function ModelCanvas({
       {showGrid && <Grid camera={camera} viewport={viewport} />}
       <Axes camera={camera} viewport={viewport} ucs={editor.ucs} />
       <StructureLayer model={model} selection={selection} hover={hover} camera={camera} viewport={viewport} activeLoadId={editor.activeLoadId} loadDraft={editor.loadDraft}
-        preview={preview} movePreview={movePreview} overlaps={overlaps} showGeometry={overlay.preferences.geometry} showLoads={overlay.preferences.loads} />
+        preview={preview} movePreview={movePreview} overlaps={overlaps} showGeometry={overlay.preferences.geometry}
+        showLoads={overlay.preferences.loads} showIds={overlay.preferences.ids} decimals={overlay.preferences.decimals} />
       <AVMLayer model={model} overlay={overlay} camera={camera} viewport={viewport} />
       {pasted && clipboard && <g className="member-preview cad-paste-preview" aria-hidden="true">
         {clipboard.bars.map(bar => {
@@ -321,7 +327,8 @@ export function ModelCanvas({
       </g>}
       {cutPoint && <g className="member-preview cad-paste-preview"><circle cx={cutPoint.x} cy={cutPoint.y} r={6} /></g>}
       <Dimensions editor={editor} camera={camera} viewport={viewport}
-        mode={overlay.preferences.geometry ? dimensions : 'hidden'} destination={endpoint?.point} />
+        mode={overlay.preferences.geometry ? dimensions : 'hidden'} destination={endpoint?.point}
+        decimals={overlay.preferences.decimals} />
       {box && <rect className={`selection-box${box.start.x > box.end.x ? ' crossing' : ''}`}
         x={Math.min(box.start.x, box.end.x)} y={Math.min(box.start.y, box.end.y)}
         width={Math.abs(box.start.x - box.end.x)} height={Math.abs(box.start.y - box.end.y)} />}

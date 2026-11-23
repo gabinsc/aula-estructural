@@ -4,6 +4,7 @@ import type { Structure } from '../domain/structure'
 import { EMPTY_STRUCTURE } from '../domain/structure'
 import { solveCross } from './cross'
 import { solveVirtualWork } from './virtualWork'
+import { solveForceMethod } from './forceMethod'
 import { buildInfluencePath, solveInfluence } from './influence'
 import type { InfluenceOptions, InfluenceTarget } from './influence'
 import { curveAt, trainEnvelope, trainValue } from './influenceCurve'
@@ -43,6 +44,23 @@ function influence(input: AnalysisInput, target: InfluenceTarget, options: Parti
 function close(a: number, b: number, abs = 1e-8) {
   expect(Math.abs(a - b)).toBeLessThanOrEqual(abs + 1e-8 * Math.abs(b))
 }
+
+it('la primaria conserva la liberación j y Cross usa factor 3EI/L sin transporte', () => {
+  const length = 4, q = 5000
+  const source = beam(length, [fixed, roller('N2')], [uniform('B1', length, q)])
+  const input: AnalysisInput = { ...source, model: { ...source.model, bars: [{ ...source.model.bars[0]!, releaseJ: true }] } }
+  const forces = solveForceMethod(input, ['N2:normal'])
+  if (!forces.ok) throw new Error(JSON.stringify(forces.result.diagnostics))
+  expect(forces.detail.primaryIndeterminacy).toBe(0)
+  close(forces.result.reactions.find(item => item.nodeId === 'N2')!.y, 3 * q * length / 8)
+  const output = solveCross(input)
+  if (!output.ok) throw new Error(JSON.stringify(output.result.diagnostics))
+  const end = output.detail.joints.find(joint => joint.nodeId === 'N1')?.ends[0]
+  expect(end?.carry).toBe(0)
+  close(end!.stiffness, 3 * EI / length)
+  close(output.detail.final['B1:j']!, 0)
+  close(Math.abs(output.detail.final['B1:i']!), q * length ** 2 / 8)
+})
 
 describe('Líneas de influencia y ejes móviles', () => {
   it('Gerber: las ordenadas de reacción reproducen el equilibrio del tramo suspendido', () => {

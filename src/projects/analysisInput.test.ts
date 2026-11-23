@@ -44,6 +44,7 @@ it('distingue geometría, conectividad, apoyos, cargas, propiedades y caso, y de
   const changed: Structure[] = [
     { ...base, nodes: base.nodes.map(node => ({ ...node, x: node.x + 1 })) },
     { ...base, bars: [{ ...base.bars[0]!, startId: 'N2', endId: 'N1' }] },
+    { ...base, bars: [{ ...base.bars[0]!, releaseI: true }] },
     { ...base, supports: [{ kind: 'pinned', nodeId: 'N1' }] },
     { ...base, loads: [] },
     { ...base, mechanics: { ...base.mechanics, assignments: [{ ...base.mechanics.assignments[0]!, I: 9e-6 }] } },

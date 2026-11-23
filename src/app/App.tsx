@@ -321,7 +321,8 @@ function Workspace({ session, storageWarning, activate }: {
           updateAvm({ view: 'combined' })
           requestAnimationFrame(() => document.querySelector('.avm-bands')?.scrollIntoView({ block: 'start' }))
         }}
-        combined={avm.view === 'combined' ? diagram : undefined} labels={avm.labels}
+        combined={avm.view === 'combined' ? diagram : undefined} preferences={avm}
+        setPresentation={presentation => updateAvm({ presentation })}
         expanded={resultsExpanded} toggleExpanded={() => setResultsExpanded(old => !old)} close={() => {
           setResultsOpen(false)
           resultsButton.current?.focus({ preventScroll: true })
@@ -329,7 +330,8 @@ function Workspace({ session, storageWarning, activate }: {
           <p role="status">Cargando diseño…</p>
         </aside>}><DesignPanel model={model} selectedBar={selectedBar} projectId={session.document.id}
           loadCaseId={loadCase.id} physicalRevision={analysis.physicalRevision} analysisRevision={analysis.revision}
-          analysis={solved} analysisStatus={method === 'influence' ? 'Selecciona un método de caso estático' : analysisStatus} cut={cut} learning={learning}
+          analysis={solved} analysisStatus={method === 'influence' ? 'Selecciona un método de caso estático' : analysisStatus}
+          cut={cut} learning={learning} decimals={avm.decimals}
           settings={designSettings ?? EMPTY_DESIGN} updateSettings={setDesignSettings}
           expanded={resultsExpanded} toggleExpanded={() => setResultsExpanded(value => !value)}
           selectBar={barId => {

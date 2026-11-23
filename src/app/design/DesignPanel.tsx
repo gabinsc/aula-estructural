@@ -6,7 +6,7 @@ import { evaluateDesign } from '../../design/evaluate'
 import { catalogOf } from '../../domain/library'
 import type { Structure } from '../../domain/structure'
 import { loadBarGeometry } from '../../domain/load'
-import { parseNumber } from '../../modeler/format'
+import { formatResult, parseNumber } from '../../modeler/format'
 import type { SectionCut } from '../../modeler/results/diagramFields'
 import { Icon } from '../Icon'
 import { ResultTable, resultNumber } from '../results/ResultTable'
@@ -25,6 +25,7 @@ type PanelProps = {
   analysis?: Solved
   analysisStatus: string
   learning: boolean
+  decimals: number
   expanded: boolean
   toggleExpanded: () => void
   cut?: SectionCut
@@ -34,12 +35,11 @@ type PanelProps = {
   showCut: (cut: SectionCut) => void
   close: () => void
 }
-const mp = (value: number | undefined) => resultNumber(value, 1 / PA_PER_MPA)
 const fiberName: Record<DesignStress['fiber'], string> = { axial: 'Aporte axial', positive: 'Fibra +y local', negative: 'Fibra −y local' }
 const sideName = (side: SectionCut['side']) => side === 'left' ? 'Izquierda' : 'Derecha'
 
 function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loadCaseId, physicalRevision, analysisRevision,
-  settings, updateSettings, showCut, learning, steel }: PanelProps & { readonly selectedBar: string; readonly steel: boolean }) {
+  settings, updateSettings, showCut, learning, steel, decimals }: PanelProps & { readonly selectedBar: string; readonly steel: boolean }) {
   const L = loadBarGeometry(model, barId)?.length ?? 0
   const [station, setStation] = useState<string>()
   const [side, setSide] = useState<SectionCut['side']>()
@@ -56,6 +56,9 @@ function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loa
   const barResult = result.actions && analysis?.bars.find(item => item.barId === barId)
   const steelSettings = settings.steel?.find(item => item.barId === barId) ?? { barId, method: 'LRFD' as const }
   const { section, actions, extremes, service, designCase } = result
+  const shown = (value: number | undefined, scale = 1, digits = decimals) =>
+    learning ? resultNumber(value, scale) : formatResult(value, { scale, decimals: digits })
+  const mp = (value: number | undefined) => shown(value, 1 / PA_PER_MPA)
   return <>
     <section className="result-section" aria-label="Datos de la barra">
       <h3>{barId} · L = {resultNumber(L)} m</h3>
@@ -91,7 +94,7 @@ function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loa
         <h3>Acciones vigentes</h3>
         <p className="result-hint">Caso {loadCaseId} · motor {result.engineVersion} · s = {resultNumber(s)} m · lado {sideName(designCase.side).toLowerCase()}</p>
         <ResultTable label="Acciones de diseño" headings={['Barra', 'N (kN)', 'V (kN)', 'M (kN·m)']}
-          rows={[{ id: barId, cells: [barId, resultNumber(actions.N, .001), resultNumber(actions.V, .001), resultNumber(actions.M, .001)] }]} />
+          rows={[{ id: barId, cells: [barId, shown(actions.N, .001), shown(actions.V, .001), shown(actions.M, .001)] }]} />
         {section && <p className="result-hint">Eje centroidal {section.axis} · I = {resultNumber(section.I, 1e8)} cm⁴
           {' '}· c⁺ = {resultNumber(section.positive.c, 1e3)} mm · c⁻ = {resultNumber(section.negative.c, 1e3)} mm
           {' '}· S⁺ = {resultNumber(section.positive.S, 1e6)} cm³ · S⁻ = {resultNumber(section.negative.S, 1e6)} cm³</p>}
@@ -108,13 +111,13 @@ function MemberDesign({ model, selectedBar: barId, cut, analysis, projectId, loa
                 setSide(item.side)
               }}>{resultNumber(item.s)}</button>, sideName(item.side), mp(item.stress)] }
           })} />}
-        {service && <p className="result-hint">En esta estación · desplazamiento y local {resultNumber(service.local, 1e3)} mm
-          {' '}· flecha relativa a la cuerda {resultNumber(service.relative, 1e3)} mm</p>}
+        {service && <p className="result-hint">En esta estación · desplazamiento y local {shown(service.local, 1e3, decimals + 1)} mm
+          {' '}· flecha relativa a la cuerda {shown(service.relative, 1e3, decimals + 1)} mm</p>}
         </>}
       </>}
     </section>
     {steel ? <SteelPanel design={result} settings={steelSettings} memberRevision={steelMemberRevision(model, barId)}
-      learning={learning} section={linked} E={assignment?.E}
+      learning={learning} decimals={decimals} section={linked} E={assignment?.E}
       frame={barResult && barResult.kind === 'frame2d' ? barResult : undefined}
       selectStation={(position, stationSide) => { setStation(String(position)); setSide(stationSide) }}
       save={item => updateSettings({ ...settings, steel: [...(settings.steel ?? []).filter(old => old.barId !== item.barId), item] })} />

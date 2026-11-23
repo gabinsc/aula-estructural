@@ -25,3 +25,5 @@ El motor condensa rigidez y carga consistente mediante el complemento de Schur. 
 | Dos tramos con rótula interior y apoyos simples exteriores | El motor diagnostica el mecanismo. |
 
 El oráculo móvil Gerber comprueba las ordenadas de las tres reacciones en S = 6 y 8 m por equilibrio de los tramos. La prueba de CAD comprueba la edición y el deshacer de una inserción.
+
+[Gerber](media/rotulas-avm-gerber.png) · [Rótula interior](media/rotulas-avm-rotula-interna.png) · [Pórtico con liberación unilateral](media/rotulas-avm-portico-liberacion-unilateral.png)

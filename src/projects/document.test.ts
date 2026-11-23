@@ -23,6 +23,19 @@ function project() {
 }
 
 describe('Documento de proyecto versionado', () => {
+  it('migra v5 con extremos rígidos y valida las liberaciones de pórtico en v6', () => {
+    const data = project()
+    const bar = data.model.bars[0]!
+    const rigid = readProject({ ...data, schemaVersion: 5 })
+    expect(rigid.model.bars[0]).toEqual(bar)
+    const articulated = { ...data.model, bars: [{ ...bar, releaseJ: true }],
+      mechanics: { version: 1, assignments: [{ barId: bar.id, kind: 'frame2d', E: 200e9, A: .02, I: 8e-6 }] } }
+    const saved = importProject(JSON.stringify({ ...data, model: articulated }))
+    expect(saved.model.bars[0]).toEqual({ ...bar, releaseJ: true })
+    expect(() => readProject({ ...data, schemaVersion: 5, model: articulated })).toThrow('Liberaciones inválidas')
+    expect(() => readProject({ ...data, model: { ...articulated, mechanics: data.model.mechanics } }))
+      .toThrow('Solo las barras de pórtico')
+  })
   it.each(['vacio.json', 'portico.json'])('migra el ejemplo v1 %s sin cambiar el modelo ni sus metadatos', file => {
     const source = readFileSync(new URL(`../../examples/${file}`, import.meta.url), 'utf8')
     const original = JSON.parse(source)

@@ -3,7 +3,7 @@
 | Entidad | Campos |
 | --- | --- |
 | Nudo | `id`, `label`, `x`, `y`. Las coordenadas son globales y se almacenan en metros. |
-| Barra | `id`, `label`, `startId`, `endId`. Longitud, orientación y ejes locales se derivan de las posiciones de sus nudos. |
+| Barra | `id`, `label`, `startId`, `endId`, `releaseI` y `releaseJ` opcionales para pórticos. Longitud, orientación y ejes locales se derivan de las posiciones de sus nudos. |
 | Apoyo nodal | `nodeId`, `kind` y, únicamente para rodillo, `surfaceAngle` en radianes globales. |
 | Carga nodal | `id`, `kind: nodal`, `nodeId`, `force` en N y `moment` en N·m. |
 | Carga puntual de barra | `id`, `kind: point`, `barId`, `s` en m, `frame` y `force` en N. |
@@ -58,4 +58,4 @@ Al dividir una barra, la carga puntual se reasigna al tramo correspondiente cons
 
 El esquema JSON 2 conserva `schemaVersion`, `id`, `name`, `createdAt`, `modifiedAt`, `model` y `view`. Añade `model.mechanics` con `version: 1` y `assignments`. Cada asignación se identifica por `barId` y declara `kind` como `truss2d` o `frame2d`. Los campos opcionales `E`, `A` e `I` se almacenan en Pa, m² y m⁴. Toda propiedad presente es finita y mayor que cero. Solo los pórticos admiten I. El análisis exige E y A en cada barra e I para cada pórtico.
 
-La migración de v1 conserva identidad, fechas, geometría, cargas, apoyos, contadores y preferencias e inicializa `mechanics.assignments` vacío. El esquema v3 añadió `model.library` y referencias opcionales `materialId`, `sectionId` y `sectionAxis`. El esquema v4 añadió `design` con resistencias en Pa por ID de material y un criterio opcional en Pa o m. El esquema v5 agrega `design.steel` con parámetros por ID de barra. Al migrar se conservan los valores manuales. Al importar se conserva el ID del proyecto si está libre. Si ya está ocupado, se crea una copia con ID nuevo. IndexedDB conserva su revisión de concurrencia fuera del JSON. [Diseño y versión 4](HITO_8_1_DESIGN_FOUNDATIONS.md) · [Acero y versión 5](HITO_8_2_STEEL_DESIGN.md) · [Ejemplos v1](../examples/)
+La migración de v1 conserva identidad, fechas, geometría, cargas, apoyos, contadores y preferencias e inicializa `mechanics.assignments` vacío. El esquema v3 añadió `model.library` y referencias opcionales `materialId`, `sectionId` y `sectionAxis`. El esquema v4 añadió `design` con resistencias en Pa por ID de material y un criterio opcional en Pa o m. El esquema v5 agrega `design.steel` con parámetros por ID de barra. El esquema v6 incorpora liberaciones i/j opcionales. Los proyectos previos migran con extremos rígidos. Al migrar se conservan los valores manuales. Al importar se conserva el ID del proyecto si está libre. Si ya está ocupado, se crea una copia con ID nuevo. IndexedDB conserva su revisión de concurrencia fuera del JSON. [Diseño y versión 4](HITO_8_1_DESIGN_FOUNDATIONS.md) · [Acero y versión 5](HITO_8_2_STEEL_DESIGN.md) · [Ejemplos v1](../examples/)

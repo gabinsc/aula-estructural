@@ -56,10 +56,16 @@ export function AVMControl({ preferences, update, status, hasResult, canvasHeigh
       </div>
       <fieldset className="avm-options"><legend>Capas</legend>
         {([['loads', 'Cargas aplicadas'], ['reactions', 'Reacciones'], ['labels', 'Etiquetas de valores'],
+          ['extremes', 'Extremos'], ['ids', 'Identificadores'], ['automaticLabels', 'Distribución automática'],
           ['geometry', 'Geometría original'], ['deformed', 'Geometría deformada']] as const).map(([key, label]) =>
           <label key={key}><input type="checkbox" checked={preferences[key]}
             onChange={event => update({ [key]: event.target.checked })} />{label}</label>)}
       </fieldset>
+      <label className="result-field">Decimales de resultados
+        <select value={preferences.decimals} onChange={event => update({ decimals: Number(event.target.value) })}>
+          {[0, 1, 2, 3, 4].map(digits => <option key={digits}>{digits}</option>)}
+        </select>
+      </label>
       {activeEfforts(view).length > 0 && <>
         <label className="avm-slider">Amplitud AVM <output>{amplitude}×</output>
           <input aria-label="Amplitud AVM" type="range" min=".25" max="3" step=".25" value={amplitude}

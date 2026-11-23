@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import type { ProjectDocument } from '../../src/projects/document'
+import { makeProject } from '../../src/projects/document'
+import { EMPTY_STRUCTURE } from '../../src/domain/structure'
+import type { Structure } from '../../src/domain/structure'
 type LegacyProject = Omit<ProjectDocument, 'schemaVersion'> & { schemaVersion: 2 }
 
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true })
@@ -40,6 +43,10 @@ async function coordinate(page: Page, x: number, y: number, action: string) {
 
 async function capture(page: Page, file: string) {
   if (process.env.AULA_AVM_CAPTURES) await page.screenshot({ path: `docs/media/hito-4.6-${file}.png`, animations: 'disabled' })
+  if (process.env.AULA_NEW_CAPTURES && ['rotula-interna', 'viga-continua', 'portico-compacto', 'portico-movil',
+    'gerber', 'portico-liberacion-unilateral', 'etiquetas-antes', 'etiquetas-despues'].includes(file)) {
+    await page.screenshot({ path: `docs/media/rotulas-avm-${file}.png`, animations: 'disabled' })
+  }
 }
 
 async function importInclined(page: Page, { unstable = false, pending = false, axial = false } = {}) {
@@ -81,6 +88,58 @@ test('edita y restaura una rótula en CAD, e inserta una interior en una transac
   await page.keyboard.press('Control+z')
   await expect(page.locator('[data-bar-id="B1"]')).toHaveCount(1)
   await expect(page.locator('[data-bar-id] [data-release]')).toHaveCount(0)
+})
+
+test('importa la Gerber y el pórtico articulado y conserva resultados y símbolos de extremo', async ({ page }) => {
+  await page.goto('./')
+  const frame = (barId: string) => ({ barId, kind: 'frame2d' as const, E: 200e9, A: .02, I: 8e-6 })
+  async function show(name: string, model: Structure) {
+    await button(page, 'Proyectos').click()
+    await page.getByLabel('Archivo de proyecto JSON').setInputFiles({
+      name: 'rotulas.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(makeProject(name, model))),
+    })
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await analyze(page)
+    await choose(page, 'AVM · Combinada')
+  }
+  const roller = (nodeId: string) => ({ nodeId, kind: 'roller' as const, surfaceAngle: 0 })
+  const nodes = (values: readonly (readonly [number, number])[]) =>
+    values.map(([x, y], i) => ({ id: `N${i + 1}`, label: `N${i + 1}`, x, y }))
+  const B1 = { id: 'B1', label: 'B1', startId: 'N1', endId: 'N2' }
+  const B2 = { id: 'B2', label: 'B2', startId: 'N2', endId: 'N3' }
+  const B3 = { id: 'B3', label: 'B3', startId: 'N3', endId: 'N4' }
+  await show('Viga Gerber', { ...EMPTY_STRUCTURE, nodes: nodes([[0, 0], [4, 0], [6, 0], [10, 0]]),
+    bars: [B1, { ...B2, releaseJ: true }, { ...B3, releaseI: true }],
+    supports: [{ nodeId: 'N1', kind: 'pinned' }, roller('N2'), roller('N4')],
+    loads: [{ id: 'C1', kind: 'point', barId: 'B3', s: 2, frame: 'global', force: { x: 0, y: -12000 } }],
+    mechanics: { version: 1, assignments: ['B1', 'B2', 'B3'].map(frame) }, nextBar: 4, nextNode: 5, nextLoad: 2,
+  })
+  const panel = page.getByRole('region', { name: 'Diagramas AVM separados' })
+  await expect(panel).toHaveAttribute('data-avm-presentation', 'developed')
+  const reactions = page.getByRole('table', { name: 'Reacciones de apoyo' })
+  await expect(reactions.getByRole('row', { name: /N1/ })).toContainText('-3')
+  await expect(reactions.getByRole('row', { name: /N2/ })).toContainText('9')
+  await expect(reactions.getByRole('row', { name: /N4/ })).toContainText('6')
+  await expect(page.locator('.model-canvas [data-release]')).toHaveCount(2)
+  await button(page, 'Ajustar vista').click()
+  await panel.scrollIntoViewIfNeeded()
+  await capture(page, 'gerber')
+  await choose(page, 'M · Momento')
+  await (await options(page)).getByLabel('Distribución automática').uncheck()
+  await page.keyboard.press('Escape')
+  await capture(page, 'etiquetas-antes')
+  await (await options(page)).getByLabel('Distribución automática').check()
+  await page.keyboard.press('Escape')
+  await capture(page, 'etiquetas-despues')
+  await show('Pórtico con articulación unilateral', { ...EMPTY_STRUCTURE,
+    nodes: nodes([[0, 0], [0, 3], [4, 3]]), bars: [B1, { ...B2, releaseI: true }],
+    supports: [{ nodeId: 'N1', kind: 'fixed' }, roller('N3')],
+    loads: [{ id: 'C1', kind: 'point', barId: 'B2', s: 2, frame: 'global', force: { x: 0, y: -12000 } }],
+    mechanics: { version: 1, assignments: ['B1', 'B2'].map(frame) }, nextBar: 3, nextNode: 4, nextLoad: 2,
+  })
+  await expect(panel).toHaveAttribute('data-avm-presentation', 'compact')
+  await expect(page.locator('.model-canvas [data-bar-id="B2"] [data-release="i"]')).toHaveCount(1)
+  await capture(page, 'portico-liberacion-unilateral')
 })
 
 test('dibuja, asigna, calcula y consulta el salto AVM con la tabla sincronizada', async ({ page }) => {
@@ -339,6 +398,7 @@ test('desarrolla tramos colineales y muestra los pórticos inclinados por barra'
   }
   await load(false)
   const panel = page.getByRole('region', { name: 'Diagramas AVM separados' })
+  await expect(panel).toHaveAttribute('data-avm-presentation', 'developed')
   const develop = panel.getByLabel('Desarrollar viga continua')
   const refs = panel.locator('[data-reference-bar]')
   const chart = panel.locator('svg')
@@ -387,6 +447,27 @@ test('desarrolla tramos colineales y muestra los pórticos inclinados por barra'
   await expect(panel.locator('[data-avm-band="V"] [data-band-bar]')).toHaveCount(2)
   await expect(panel.locator('[data-avm-band="M"]')).toContainText('B3 · M no aplica a armaduras')
   await load(true)
+  await expect(panel).toHaveAttribute('data-avm-presentation', 'compact')
+  await expect(panel.locator('[data-compact-member]')).toHaveCount(3)
+  const axial = (await panel.locator('.avm-compact-N').boundingBox())!
+  const reference = (await panel.locator('.avm-compact-model').boundingBox())!
+  const shear = (await panel.locator('.avm-compact-V').boundingBox())!
+  const moment = (await panel.locator('.avm-compact-M').boundingBox())!
+  expect(axial.x).toBeLessThan(reference.x)
+  expect(reference.x).toBeLessThan(shear.x)
+  expect(moment.y).toBeGreaterThan(reference.y)
+  await capture(page, 'portico-compacto')
+  await panel.getByLabel('Presentación AVM').selectOption('developed')
+  await expect(panel).toHaveAttribute('data-avm-presentation', 'developed')
+  await panel.getByLabel('Presentación AVM').selectOption('auto')
+  await page.setViewportSize({ width: 390, height: 820 })
+  const mobileReference = (await panel.locator('.avm-compact-model').boundingBox())!
+  const mobileAxial = (await panel.locator('.avm-compact-N').boundingBox())!
+  expect(mobileReference.y).toBeLessThan(mobileAxial.y)
+  if (process.env.AULA_NEW_CAPTURES) {
+    await panel.locator('.avm-compact').screenshot({ path: 'docs/media/rotulas-avm-portico-movil.png', animations: 'disabled' })
+  }
+  await page.setViewportSize({ width: 1920, height: 1080 })
   await expect(develop).toHaveCount(0)
   await expect(refs).toHaveCount(1)
   await (await options(page)).getByLabel('Cargas aplicadas').uncheck()

@@ -7,7 +7,7 @@ import { checkComponent, checkFrameEnds, computeReactions } from './recover'
 import { assembleModel, frameGlobalStiffness, reduceComponent, trussStiffness } from './assembly'
 
 export const TRUSS_ENGINE_VERSION = '4.2.0'
-export const ANALYSIS_ENGINE_VERSION = '4.3.0'
+export const ANALYSIS_ENGINE_VERSION = '4.4.0'
 
 /** Resuelve una instantánea estructural sin modificarla. Un fallo devuelve solo diagnósticos. */
 export function solveTruss(input: AnalysisInput): TrussAnalysisResult {

@@ -2,7 +2,7 @@ import type { Point } from '../../geometry/coordinates'
 import { degrees, fromGlobal, subtract } from '../../geometry/coordinates'
 import { worldToScreen } from '../../geometry/camera'
 import type { Camera, Viewport } from '../../geometry/camera'
-import { formatNumber } from '../format'
+import { formatResult } from '../format'
 import type { Editor } from '../tools/editor'
 
 export type DimensionMode = 'hidden' | 'selection' | 'all'
@@ -18,13 +18,13 @@ function text(point: Point, value: string) {
   return <text x={point.x} y={point.y} textAnchor="middle">{value}</text>
 }
 
-function Dimension({ a, b, start, end, angle, temporary }: {
-  a: Point; b: Point; start: Point; end: Point; angle: number; temporary: boolean
+function Dimension({ a, b, start, end, angle, temporary, decimals }: {
+  a: Point; b: Point; start: Point; end: Point; angle: number; temporary: boolean; decimals: number
 }) {
   const measure = measureBar(start, end, angle)
   const span = Math.hypot(b.x - a.x, b.y - a.y)
   const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-  const f = (n: number) => formatNumber(Math.abs(n) < 1e-10 ? 0 : n, 4)
+  const f = (n: number) => formatResult(n, { decimals }).replace('.', ',')
   const theta = measure.length ? `${f(degrees(measure.angle))}°` : '—'
   const projection = `ΔX ${f(measure.delta.x)} m · ΔY ${f(measure.delta.y)} m`
   const n = span ? { x: (b.y - a.y) / span, y: (a.x - b.x) / span } : { x: 0, y: -1 }
@@ -46,8 +46,8 @@ function Dimension({ a, b, start, end, angle, temporary }: {
   </g>
 }
 
-export function Dimensions({ editor, camera, viewport, mode, destination }: {
-  editor: Editor; camera: Camera; viewport: Viewport; mode: DimensionMode; destination?: Point
+export function Dimensions({ editor, camera, viewport, mode, destination, decimals }: {
+  editor: Editor; camera: Camera; viewport: Viewport; mode: DimensionMode; destination?: Point; decimals: number
 }) {
   const { model, interaction, selection, ucs } = editor
   const nodes = new Map(model.nodes.map(node => [node.id, node]))
@@ -74,9 +74,9 @@ export function Dimensions({ editor, camera, viewport, mode, destination }: {
       if (x < 28 || x > viewport.width || y < 35 || y > viewport.height || used.has(key) ||
         (!selected.has(bar.id) && Math.hypot(b.x - a.x, b.y - a.y) < 28)) return null
       used.add(key)
-      return <Dimension key={bar.id} a={a} b={b} start={start} end={end} angle={ucs.angle} temporary={false} />
+      return <Dimension key={bar.id} a={a} b={b} start={start} end={end} angle={ucs.angle} temporary={false} decimals={decimals} />
     })}
     {physicalStart && destination && <Dimension a={toScreen(physicalStart)} b={toScreen(destination)}
-      start={physicalStart} end={destination} angle={ucs.angle} temporary />}
+      start={physicalStart} end={destination} angle={ucs.angle} temporary decimals={decimals} />}
   </g>
 }
