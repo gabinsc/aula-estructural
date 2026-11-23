@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Structure } from '../../domain/structure'
 import { SupportSymbol } from '../../modeler/canvas/SupportSymbol'
 import { formatResult } from '../../modeler/format'
@@ -144,6 +144,17 @@ export function CombinedDiagrams({ diagram, model, selectedId, cut, onCut, prefe
   const [events, setEvents] = useState({ extremes: true, zeros: true, jumps: true })
   const [scales, setScales] = useState({ N: 1, V: 1, M: 1 })
   const [heights, setHeights] = useState({ N: 98, V: 98, M: 98 })
+  const panel = useRef<HTMLElement>(null)
+  const [narrowPanel, setNarrowPanel] = useState(false)
+  useEffect(() => {
+    const element = panel.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setNarrowPanel(entry.contentRect.width <= 470)
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
   const span = useMemo(() => selected ? developedSpan(selected, diagram.members) : [], [selected, diagram.members])
   if (!selected) return null
   const layout = presentation === 'auto' ? automaticPresentation(diagram.members) : presentation
@@ -192,7 +203,7 @@ export function CombinedDiagrams({ diagram, model, selectedId, cut, onCut, prefe
     events={{ ...events, extremes: events.extremes && preferences.extremes }} width={narrow ? 235 : 720} height={heights[field]} />
   const guide = (begin: number, end: number, positionX = x) => position !== undefined && <line className="avm-band-guide"
     data-station-guide={position} x1={positionX(position)} x2={positionX(position)} y1={begin} y2={end} />
-  return <section className="result-section avm-bands" aria-label="Diagramas AVM separados" data-avm-presentation={layout}>
+  return <section ref={panel} className="result-section avm-bands" aria-label="Diagramas AVM separados" data-avm-presentation={layout}>
     <div className="avm-bands-header">
       <h3>Diagramas AVM</h3>
       <label className="result-field">Barra en franjas
@@ -274,7 +285,7 @@ export function CombinedDiagrams({ diagram, model, selectedId, cut, onCut, prefe
     </svg> : <div className="avm-compact">
       <CompactGeometry model={model} diagram={diagram} selectedId={selected.id} select={selectBar} />
       {visible.map(field => {
-        const narrow = field !== 'M'
+        const narrow = field !== 'M' || narrowPanel
         return <svg className={`avm-compact-${field}`} key={field} viewBox={`0 0 ${narrow ? 235 : 720} ${heights[field]}`}
           role="img" aria-label={`${NAMES[field]} de ${selected.id} en ${EFFORT_UNIT[field]}`}
           onClick={event => narrow ? chartClick(event, 55, 219) : chartClick(event)}>

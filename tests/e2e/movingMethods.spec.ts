@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true })
 const state = (page: Page) => page.getByRole('status', { name: 'Estado de análisis' })
@@ -16,6 +17,93 @@ async function analyze(page: Page) {
   await button(page, 'Analizar estructura').click()
   await expect(state(page)).toHaveText('Resultado vigente')
 }
+
+test('sincroniza líneas, conserva el orden visual y descarga el reporte en tres formatos', async ({ page }) => {
+  await exercise(page, 'Viga simplemente apoyada')
+  await page.getByLabel('Método de análisis').selectOption('influence')
+  await page.getByLabel('Barras en orden de avance').fill('B1')
+  const target = page.getByLabel('Respuesta de influencia')
+  const entity = page.getByLabel('Entidad objetivo')
+  await entity.selectOption('N1')
+  await button(page, 'Agregar a líneas mostradas').click()
+  await entity.selectOption('N2')
+  await button(page, 'Agregar a líneas mostradas').click()
+  await target.selectOption('effort')
+  await entity.selectOption('B1')
+  await page.getByRole('combobox', { name: 'Campo', exact: true }).selectOption('V')
+  await button(page, 'Agregar a líneas mostradas').click()
+  await page.getByRole('combobox', { name: 'Campo', exact: true }).selectOption('M')
+  await button(page, 'Agregar a líneas mostradas').click()
+  await target.selectOption('translation')
+  await entity.selectOption('N2')
+  await button(page, 'Agregar a líneas mostradas').click()
+  await analyze(page)
+  const shown = page.getByRole('region', { name: 'Líneas mostradas' })
+  const bands = shown.locator('[data-influence-band]')
+  await expect(bands).toHaveCount(5)
+  const result = page.getByRole('region', { name: 'Líneas de influencia' })
+  const slider = result.getByRole('slider', { name: 'Posición móvil S (m)' })
+  await slider.evaluateAll(inputs => {
+    const input = inputs[0] as HTMLInputElement
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, '3')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await expect(shown.locator('[data-series-station="3"]')).toHaveCount(5)
+  expect(Number(await bands.nth(0).locator('[data-series-value]').getAttribute('data-series-value'))).toBeCloseTo(.5, 9)
+  await expect(bands.nth(2).locator('[data-series-jump="3"]')).toHaveCount(1)
+  await expect(shown.locator('[data-reference-station="3"]')).toHaveCount(1)
+  await shown.getByText('Configurar líneas mostradas').click()
+  await button(page, 'Subir LI2').click()
+  await expect(bands.first()).toHaveAttribute('data-influence-band', 'LI2')
+  await shown.getByLabel('Visible LI1').uncheck()
+  await expect(bands).toHaveCount(4)
+  await expect(state(page)).toHaveText('Resultado vigente')
+  await shown.getByLabel('Color LI2').fill('#006699')
+  await expect(bands.first().locator('[data-series-segment]').first()).toHaveAttribute('stroke', '#006699')
+  if (process.env.AULA_NEW_CAPTURES) {
+    await shown.locator('h4').scrollIntoViewIfNeeded()
+    await page.screenshot({ path: 'docs/media/lineas-influencia-multiples.png' })
+  }
+  const dialog = result.locator('.influence-report')
+  await dialog.getByText('Exportar reporte de líneas de influencia').click()
+  await dialog.getByRole('group', { name: 'Líneas del reporte' }).getByLabel('Reacción · N1').check()
+  await dialog.getByLabel('Tabla de extremos').check()
+  const pages = dialog.locator('[data-report-page]')
+  await expect(pages).toHaveCount(2)
+  await expect(pages.locator('[data-influence-band]')).toHaveCount(5)
+  await expect(pages.locator('[data-report-member="B1"]')).toHaveCount(2)
+  await expect(pages.locator('[data-report-support]')).toHaveCount(4)
+  expect(await pages.nth(0).locator('[data-reference-station]').getAttribute('x1'))
+    .toBe(await pages.nth(1).locator('[data-reference-station]').getAttribute('x1'))
+  if (process.env.AULA_NEW_CAPTURES) {
+    await pages.first().scrollIntoViewIfNeeded()
+    await page.screenshot({ path: 'docs/media/influencia-vista-previa.png' })
+  }
+  for (const format of ['svg', 'png', 'pdf']) {
+    await dialog.getByLabel('Formato').selectOption(format)
+    const [download] = await Promise.all([page.waitForEvent('download'), button(page, 'Descargar reporte').click()])
+    const content = await readFile((await download.path())!)
+    expect(download.suggestedFilename()).toMatch(new RegExp(`\\.${format}$`))
+    if (format === 'svg') {
+      expect(content.toString()).toContain('data-series-jump="3"')
+      expect(content.toString()).toContain('data-report-page="2"')
+      expect(content.toString()).toContain('Estaciones críticas')
+      if (process.env.AULA_NEW_CAPTURES) await download.saveAs('docs/media/reporte-influencia-ejemplo.svg')
+    } else if (format === 'png') {
+      expect(content.subarray(1, 4).toString()).toBe('PNG')
+      expect(content.readUInt32BE(20)).toBeGreaterThan(content.readUInt32BE(16))
+      if (process.env.AULA_NEW_CAPTURES) await download.saveAs('docs/media/reporte-influencia-ejemplo.png')
+    } else {
+      expect(content.subarray(0, 4).toString()).toBe('%PDF')
+      expect(content.toString('latin1')).toMatch(/\/Count 2/)
+      if (process.env.AULA_NEW_CAPTURES) await download.saveAs('docs/media/reporte-influencia-ejemplo.pdf')
+    }
+  }
+  await expect(button(page, 'Deshacer')).toBeDisabled()
+  await page.getByLabel('Barras en orden de avance').fill('B1, B2')
+  await expect(state(page)).toHaveText('Resultado desactualizado')
+  await expect(dialog).toHaveCount(0)
+})
 
 test('línea de cortante y tren con salto, máximo, CAD sincronizado y vigencia', async ({ page }) => {
   await exercise(page, 'Viga simplemente apoyada')

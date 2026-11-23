@@ -848,10 +848,14 @@ kbd {
 .avm-compact-M { grid-area: m; }
 .avm-reference-node { fill: #a1d9e6; }
 .avm-reference-load { fill: #e5b27a; }
+.influence-band-stack { display: grid; gap: 5px; }
+.influence-band-stack svg, .influence-report-preview > svg { display: block; width: 100%; height: auto; }
+.influence-report-preview { display: grid; gap: 10px; margin-top: 12px; }
+.influence-report-flags { display: flex; flex-wrap: wrap; gap: 8px 14px; }
 @container (max-width: 470px) {
   .avm-compact { grid-template-columns: minmax(0, 1fr); grid-template-areas: "model" "n" "v" "m"; }
   .avm-compact-model { max-height: 190px; }
-  .avm-compact-N, .avm-compact-V { max-width: 300px; justify-self: center; }
+  .avm-compact-N, .avm-compact-V, .avm-compact-M { max-width: 300px; justify-self: center; }
 }
 .avm-bands { container-type: inline-size; }
 .avm-band-bg { fill: #182531; stroke: #2c4354; }

@@ -33,10 +33,11 @@ import { availableRedundants, MAX_REDUNDANTS } from '../analysis/forceMethod'
 import { INITIAL_VIRTUAL, MethodControls, methodRequest } from './results/MethodControls'
 import type { MethodKind } from './results/MethodControls'
 import { RedundantMarkers } from './results/MethodGraphics'
-import { INITIAL_INFLUENCE } from './results/InfluenceControls'
+import { DEFAULT_LINE_COLORS, INITIAL_INFLUENCE } from './results/InfluenceControls'
+import type { DisplayedInfluence } from './results/InfluenceControls'
 import { InfluenceOverlay } from './results/InfluenceResults'
 import type { MovingPosition } from './results/InfluenceResults'
-import type { InfluenceDetail } from '../analysis/influence'
+import type { InfluenceDetail, InfluenceTarget } from '../analysis/influence'
 import { EMPTY_DESIGN } from '../design/settings'
 
 const DesignPanel = lazy(() => import('./design/DesignPanel'))
@@ -92,6 +93,8 @@ function Workspace({ session, storageWarning, activate }: {
   const [virtualDraft, setVirtualDraft] = useState(INITIAL_VIRTUAL)
   const [redundants, setRedundants] = useState<readonly string[]>([])
   const [movingDraft, setMovingDraft] = useState(INITIAL_INFLUENCE)
+  const [influenceLines, setInfluenceLines] = useState<readonly DisplayedInfluence[]>([])
+  const lineSerial = useRef(0)
   const [mobile, setMobile] = useState<{ detail: InfluenceDetail; position: MovingPosition }>()
   const [panel, setPanel] = useState<WorkspacePanel | null>(null)
   const { interaction, model, snap } = editor
@@ -101,7 +104,16 @@ function Workspace({ session, storageWarning, activate }: {
     return { id: 'seleccion', loadIds: caseIds.filter(id => live.has(id)) }
   }, [caseIds, model.loads])
   const candidatesForMethod = useMemo(() => method === 'forces' ? availableRedundants(model) : [], [method, model])
-  const analysis = useAnalysis(model, method === 'influence' ? ALL_LOADS : loadCase, methodRequest(method, virtualDraft, redundants, movingDraft))
+  const targets = influenceLines.map(({ id, target }) => ({ id, target })).sort((a, b) => a.id.localeCompare(b.id))
+  const analysis = useAnalysis(model, method === 'influence' ? ALL_LOADS : loadCase,
+    methodRequest(method, virtualDraft, redundants, movingDraft, targets))
+  function addInfluenceLine(target: InfluenceTarget) {
+    const id = `LI${++lineSerial.current}`
+    const name = target.kind === 'effort' ? `${target.field} · ${target.barId}`
+      : `${target.kind === 'reaction' ? 'Reacción' : target.motion.kind === 'rotation' ? 'Giro' : 'Desplazamiento'} · ${target.nodeId}`
+    setInfluenceLines(old => old.length < 8 ? [...old, { id, target, name, scale: 1, visible: true,
+      color: DEFAULT_LINE_COLORS[(lineSerial.current - 1) % DEFAULT_LINE_COLORS.length]! }] : old)
+  }
   const [avm, setAvm] = useState<AVMPreferences>(DEFAULT_PREFERENCES)
   const viewChosen = useRef(false)
   const [savedCut, setSavedCut] = useState<{ cut: SectionCut; result: SolvedAnalysis }>()
@@ -310,10 +322,12 @@ function Workspace({ session, storageWarning, activate }: {
         </button>} />
       {resultsOpen ? <ResultsPanel state={analysis.state} missing={analysis.missing} loads={model.loads}
         influenceMode={method === 'influence'} mobilePosition={currentMobile}
+        influenceLines={influenceLines} setInfluenceLines={setInfluenceLines}
         onMobile={position => { if (influence) setMobile({ detail: influence, position }) }}
         model={model} methodControls={<MethodControls model={model} kind={method} changeKind={setMethod}
           draft={virtualDraft} changeDraft={setVirtualDraft} selection={editor.selection} candidates={candidatesForMethod}
-          ids={redundants} toggle={toggleRedundant} clear={() => setRedundants([])} moving={movingDraft} changeMoving={setMovingDraft} />}
+          ids={redundants} toggle={toggleRedundant} clear={() => setRedundants([])} moving={movingDraft} changeMoving={setMovingDraft}
+          addLine={addInfluenceLine} lineCount={influenceLines.length} />}
         selected={caseIds === null ? null : loadCase.loadIds ?? []} setSelected={setCaseIds}
         learning={learning} selection={editor.selection} select={selectResult} cut={cut} onCut={pick}
         onShowCut={value => {

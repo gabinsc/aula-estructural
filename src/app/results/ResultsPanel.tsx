@@ -16,6 +16,7 @@ import { MethodResults } from './MethodResults'
 import { InfluenceResults } from './InfluenceResults'
 import type { MovingPosition } from './InfluenceResults'
 import { formatResult } from '../../modeler/format'
+import type { DisplayedInfluence } from './InfluenceControls'
 
 type Success = Extract<AnalysisResult, { ok: true }>
 
@@ -87,7 +88,7 @@ function AnalysisSummary({ result }: { result: Success }) {
 
 export function ResultsPanel({ state, missing, loads, selected, setSelected, learning, selection, select, close, cut, onCut,
   combined, preferences, setPresentation, expanded, toggleExpanded, onShowCut, model, methodControls,
-  influenceMode, mobilePosition, onMobile }: {
+  influenceMode, mobilePosition, onMobile, influenceLines, setInfluenceLines }: {
   state: AnalysisState
   missing: readonly AnalysisDiagnostic[]
   model: Structure
@@ -95,6 +96,8 @@ export function ResultsPanel({ state, missing, loads, selected, setSelected, lea
   influenceMode: boolean
   mobilePosition: MovingPosition
   onMobile: (position: MovingPosition) => void
+  influenceLines: readonly DisplayedInfluence[]
+  setInfluenceLines: (lines: readonly DisplayedInfluence[]) => void
   loads: readonly StructuralLoad[]
   selected: readonly string[] | null
   setSelected: (ids: readonly string[] | null) => void
@@ -151,7 +154,8 @@ export function ResultsPanel({ state, missing, loads, selected, setSelected, lea
         : 'Ejecuta Analizar estructura para obtener desplazamientos, reacciones y esfuerzos.'}</p>}
       <Diagnostics diagnostics={diagnostics} select={select} />
       {result && state.status === 'current' && state.detail?.kind === 'influence' &&
-        <InfluenceResults key={result.revision} detail={state.detail} learning={learning} select={select} position={mobilePosition} onPosition={onMobile} />}
+        <InfluenceResults key={result.revision} detail={state.detail} learning={learning} select={select} position={mobilePosition}
+          onPosition={onMobile} model={model} lines={influenceLines} changeLines={setInfluenceLines} decimals={decimals} />}
       {result && !influenceMode && <>
         {state.status === 'current' && state.detail && state.detail.kind !== 'influence' && <MethodResults key={result.revision} detail={state.detail} model={model}
           activeIds={result.loads.map(load => load.id)} learning={learning} select={select} selectedBar={bar} />}

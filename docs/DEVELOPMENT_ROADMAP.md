@@ -55,3 +55,7 @@ El módulo independiente de Diseño consume esfuerzos vigentes y evalúa la tens
 ### Hito 8.2 · Verificaciones educativas de acero
 
 El módulo aplica un subconjunto documentado de E.090 con LRFD y ASD separados. Calcula resistencias y compara demandas del caso vigente cuando existe una declaración compatible. JSON v5 añade los parámetros confirmados por barra. Quedan para incrementos posteriores las combinaciones automáticas, las ramas generales de pandeo y la comprobación integral de diseño. [Fórmulas, alcance y aceptación](HITO_8_2_STEEL_DESIGN.md)
+
+### Rótulas y visualización de resultados
+
+Las liberaciones i/j de pórtico se guardan en JSON v6 y el motor recupera los giros independientes. El AVM incorpora presentación desarrollada y compacta, y las consultas de influencia comparten recorrido con exportación académica PDF, SVG y PNG. Queda pendiente la consulta de trabajo virtual conjugada a un giro del extremo liberado mediante momento de cara. [Rótulas](HITO_HINGES_RELEASES.md) · [AVM adaptable](HITO_AVM_ADAPTIVE_VIEW.md) · [Precisión y etiquetas](HITO_RESULTS_PRESENTATION.md) · [Reportes](HITO_INFLUENCE_REPORTS.md)

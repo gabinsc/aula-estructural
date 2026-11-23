@@ -1,6 +1,7 @@
 import { MAX_REDUNDANTS } from '../../analysis/forceMethod'
 import type { Redundant } from '../../analysis/forceMethod'
-import type { MethodRequest } from '../../analysis/methods'
+import type { InfluenceQueryTarget, MethodRequest } from '../../analysis/methods'
+import type { InfluenceTarget } from '../../analysis/influence'
 import { loadBarGeometry } from '../../domain/load'
 import type { Selection, Structure } from '../../domain/structure'
 import { radians } from '../../geometry/coordinates'
@@ -19,11 +20,12 @@ export interface VirtualDraft {
 }
 export const INITIAL_VIRTUAL: VirtualDraft = { targetKind: 'node', id: '', station: '', direction: 'y', angle: '0' }
 
-export function methodRequest(kind: MethodKind, draft: VirtualDraft, ids: readonly string[], moving: InfluenceDraft): MethodRequest | undefined {
+export function methodRequest(kind: MethodKind, draft: VirtualDraft, ids: readonly string[], moving: InfluenceDraft,
+  targets?: readonly InfluenceQueryTarget[]): MethodRequest | undefined {
   if (kind === 'stiffness') return undefined
   if (kind === 'forces') return { kind, ids }
   if (kind === 'cross') return { kind }
-  if (kind === 'influence') return { kind, options: influenceOptions(moving) }
+  if (kind === 'influence') return { kind, options: influenceOptions(moving), ...(targets?.length && { targets }) }
   const station = parseNumber(draft.station)
   const angle = parseNumber(draft.angle)
   if (!draft.id || (draft.targetKind === 'section' && station === null) || (draft.direction === 'angle' && angle === null)) {
@@ -45,7 +47,8 @@ export function motionLabel(item: Redundant) {
     : `Fuerza (${resultNumber(motion.direction.x)}, ${resultNumber(motion.direction.y)})`
 }
 
-export function MethodControls({ kind, changeKind, draft, changeDraft, model, selection, candidates, ids, toggle, clear, moving, changeMoving }: {
+export function MethodControls({ kind, changeKind, draft, changeDraft, model, selection, candidates, ids, toggle, clear, moving, changeMoving,
+  addLine, lineCount }: {
   kind: MethodKind
   changeKind: (kind: MethodKind) => void
   draft: VirtualDraft
@@ -58,6 +61,8 @@ export function MethodControls({ kind, changeKind, draft, changeDraft, model, se
   clear: () => void
   moving: InfluenceDraft
   changeMoving: (value: InfluenceDraft) => void
+  addLine: (target: InfluenceTarget) => void
+  lineCount: number
 }) {
   const picked = selection.find(item => item.kind === 'node' || item.kind === 'bar')
   const choose = (targetKind: VirtualDraft['targetKind'], id: string) => {
@@ -76,8 +81,9 @@ export function MethodControls({ kind, changeKind, draft, changeDraft, model, se
         <option value="cross">Distribución de momentos</option>
       </select>
     </label>
-    {kind === 'influence' && <InfluenceControls model={model} draft={moving} change={changeMoving} selection={selection} />}
-    {kind === 'cross' && <p className="result-hint">Cross admite vigas y pórticos con nudos rígidos y sin rotación apreciable de cuerda. Se distribuyen únicamente giros libres.</p>}
+    {kind === 'influence' && <InfluenceControls model={model} draft={moving} change={changeMoving} selection={selection}
+      addLine={addLine} lineCount={lineCount} />}
+    {kind === 'cross' && <p className="result-hint">Cross admite vigas y pórticos sin rotación apreciable de cuerda. Se distribuyen los giros nodales activos.</p>}
     {kind === 'virtual' && <fieldset className="method-fields">
       <legend>Respuesta buscada</legend>
       <div className="result-controls">

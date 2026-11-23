@@ -42,7 +42,13 @@ Un diagnóstico con ID permite seleccionar la entidad afectada. Usa **Volver al 
 4. Aplica una **Carga puntual sobre barra** en s = 3 m, con Fy = −12 kN en global y Fx = 0.
 5. Calcula. Comprueba Ry = +6 kN en cada apoyo. En la estación de 3 m, comprueba M = +18 kN·m, v′ = −33,75 mm y V = +6 kN a la izquierda y −6 kN a la derecha.
 
-La versión local del Hito 8.2 guarda los parámetros de acero en JSON v5 y conserva los datos v1 a v4 al importar. Al recargar, vuelve a ejecutar el análisis para obtener resultados de la nueva sesión. Los proyectos permanecen en ese navegador y origen web. La Beta 0.2 pública usa JSON v4.
+La versión local guarda parámetros de acero y liberaciones en JSON v6 y admite proyectos v1 a v5. Al recargar, vuelve a ejecutar el análisis para obtener resultados de la nueva sesión. Los proyectos permanecen en ese navegador y origen web. La Beta 0.2 pública usa JSON v4.
+
+Para liberar momento, selecciona una barra configurada como pórtico y abre **Rótula / Liberar momento** en el Inspector. Usa i para el extremo inicial y j para el final. **Insertar rótula interior** solicita la estación física desde i. Las dos caras comparten el nudo creado y tienen giros independientes.
+
+En **AVM · Combinada**, usa **Presentación AVM** para elegir la disposición. **Configurar franjas** permite ajustar la escala, altura y visibilidad. Desde **Opciones AVM** puedes cambiar los decimales y la densidad de etiquetas.
+
+En **Resultados → Líneas de influencia**, configura el recorrido y agrega los objetivos que quieras mostrar antes de analizar. Ajusta el orden y apariencia en **Configurar líneas mostradas**. Abre **Exportar reporte de líneas de influencia** para seleccionar contenido, formato, papel y orientación. [Ejemplo PDF](media/reporte-influencia-ejemplo.pdf)
 
 ## Consultar diseño estructural
 

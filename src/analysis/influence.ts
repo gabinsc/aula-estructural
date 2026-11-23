@@ -2,7 +2,7 @@ import { loadBarGeometry } from '../domain/load'
 import type { StructuralLoad } from '../domain/load'
 import type { Structure } from '../domain/structure'
 import type { Point } from '../geometry/coordinates'
-import type { AnalysisInput } from './contracts'
+import type { AnalysisInput, AnalysisResult } from './contracts'
 import { evaluateFrameSection } from './frame'
 import { axleStation, curveAt, curveKnots, curveZeros, cubicValue, extrema, INTERIOR_ABSCISSAE, sampleCubic, trainEnvelope } from './influenceCurve'
 import type { CurveKnot, CurvePiece, CurvePoint, Train } from './influenceCurve'
@@ -126,13 +126,16 @@ function structuralValue(result: Solved, target: InfluenceTarget) {
   return bar.axialForce
 }
 
-function direct(input: AnalysisInput, target: InfluenceTarget, loads: readonly StructuralLoad[]) {
-  const result = solveAnalysis(modelCase(input, loads, 'movil-temporal'))
+function direct(input: AnalysisInput, target: InfluenceTarget, loads: readonly StructuralLoad[], cache?: Map<string, AnalysisResult>) {
+  const key = cache ? JSON.stringify(loads) : ''
+  const existing = cache?.get(key)
+  const result = existing ?? solveAnalysis(modelCase(input, loads, 'movil-temporal'))
+  if (!existing && cache && cache.size < 600) cache.set(key, result)
   if (!result.ok) throw new RangeError(result.diagnostics.map(item => item.message).join(' '))
   return structuralValue(result, target)
 }
 
-export function solveInfluence(input: AnalysisInput, options: InfluenceOptions):
+export function solveInfluence(input: AnalysisInput, options: InfluenceOptions, cache?: Map<string, AnalysisResult>):
   MethodFailure | { readonly ok: true; readonly result: Solved; readonly detail: InfluenceDetail } {
   const base = solveAnalysis(modelCase(input, []))
   if (!base.ok) return { ok: false, result: base }
@@ -166,7 +169,7 @@ export function solveInfluence(input: AnalysisInput, options: InfluenceOptions):
       const s = cut && S === cutS && point.step.barId === cut.barId ? cut.s : point.s
       return [{ id, kind: 'point', barId: point.step.barId, s, frame: 'global', force: { x: unit.x * magnitude, y: unit.y * magnitude } }]
     }
-    const at = (s: number) => direct(input, target, loadAt(s, 1, '@movil'))
+    const at = (s: number) => direct(input, target, loadAt(s, 1, '@movil'), cache)
     const pieces = breaks.slice(1).map((to, i) => sampleCubic(breaks[i]!, to, at))
     const knots = curveKnots(pieces, at)
     let verification: InfluenceDetail['verification'] | undefined

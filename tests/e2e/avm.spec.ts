@@ -464,6 +464,7 @@ test('desarrolla tramos colineales y muestra los pórticos inclinados por barra'
   const mobileReference = (await panel.locator('.avm-compact-model').boundingBox())!
   const mobileAxial = (await panel.locator('.avm-compact-N').boundingBox())!
   expect(mobileReference.y).toBeLessThan(mobileAxial.y)
+  await expect(panel.locator('.avm-compact-M')).toHaveAttribute('viewBox', /^0 0 235 /)
   if (process.env.AULA_NEW_CAPTURES) {
     await panel.locator('.avm-compact').screenshot({ path: 'docs/media/rotulas-avm-portico-movil.png', animations: 'disabled' })
   }
