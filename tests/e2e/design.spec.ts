@@ -11,7 +11,7 @@ async function openDesign(page: Page) {
   await panel(page).getByLabel('Barra de diseño').selectOption('B1')
 }
 
-test('diseño consume el corte vigente y recupera resistencias y criterio mediante IndexedDB y JSON v4', async ({ page }) => {
+test('diseño consume el corte vigente y recupera resistencias y criterio mediante IndexedDB y JSON', async ({ page }) => {
   const section = makeSection('s1', 'Rectangular del ejercicio', { kind: 'rectangle', dimensions: { b: .2, h: .4 } })
   const date = '2026-11-21T00:00:00.000Z'
   const project = { schemaVersion: 3, id: 'diseno-test', name: 'Viga para diseño', createdAt: date, modifiedAt: date,
@@ -88,14 +88,14 @@ test('diseño consume el corte vigente y recupera resistencias y criterio median
   const path = await (await download).path()
   const json = await readFile(path!, 'utf8')
   const exported = JSON.parse(json)
-  expect(exported.schemaVersion).toBe(4)
+  expect(exported.schemaVersion).toBe(6)
   expect(exported.design.materials[0].fy).toBe(275e6)
   expect(exported.design.criterion).toMatchObject({ tension: 2e6, compression: 3e6,
     service: { limit: .0001, reference: 'relative-chord' } })
   expect(exported.design).not.toHaveProperty('results')
   expect(exported.model.mechanics).toEqual(project.model.mechanics)
   await page.getByLabel('Archivo de proyecto JSON').setInputFiles({
-    name: 'viga-v4.json', mimeType: 'application/json', buffer: Buffer.from(json),
+    name: 'viga-v5.json', mimeType: 'application/json', buffer: Buffer.from(json),
   })
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await openDesign(page)

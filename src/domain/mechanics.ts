@@ -44,6 +44,9 @@ export function editMechanicalValues(model: Structure, barIds: readonly string[]
   const ids = new Set(barIds)
   const existing = new Set(model.bars.map(bar => bar.id))
   if (!ids.size || [...ids].some(id => !existing.has(id))) return { error: 'Selecciona barras existentes.' }
+  if ((!patch || patch.kind === 'truss2d') && model.bars.some(bar => ids.has(bar.id) && (bar.releaseI || bar.releaseJ))) {
+    return { error: 'Restaura la continuidad de los extremos antes de quitar o cambiar el tipo de pórtico.' }
+  }
   const old = model.mechanics.assignments
   const byId = new Map(old.map(assignment => [assignment.barId, assignment]))
   let changed = false

@@ -4,7 +4,7 @@ import type { MechanicalPatch } from '../../domain/mechanics'
 import { editLibrary } from '../../domain/library'
 import type { LibraryEdit } from '../../domain/library'
 import type { Endpoint, GeometrySelection, Selection, Structure } from '../../domain/structure'
-import { reverseBar, splitBar } from '../../domain/barEdition'
+import { reverseBar, setMomentReleases, splitBar } from '../../domain/barEdition'
 import { copyEntities, duplicateLoads, pasteGeometry } from '../../domain/clipboard'
 import type { Clipboard } from '../../domain/clipboard'
 import { loadBarGeometry, saveLoad } from '../../domain/load'
@@ -25,7 +25,7 @@ export type Interaction =
   | { tool: 'pan' }
   | { tool: 'reference' }
   | { tool: 'paste'; target?: GeometrySelection['kind'] }
-  | { tool: 'split'; barId: string }
+  | { tool: 'split'; barId: string; hinge?: true }
   | { tool: 'edit-node'; nodeId: string }
   | { tool: 'move'; stage: 'pick' }
   | { tool: 'move'; stage: 'place'; referenceId: string; nodeIds: readonly string[] }
@@ -74,7 +74,8 @@ export type Action =
   | { type: 'copy'; items?: readonly Selection[] }
   | { type: 'paste-start' }
   | { type: 'paste-loads'; target: GeometrySelection }
-  | { type: 'split-start'; barId: string }
+  | { type: 'split-start'; barId: string; hinge?: true }
+  | { type: 'moment-releases'; barId: string; releaseI: boolean; releaseJ: boolean }
   | { type: 'split-bar'; barId: string; s: number }
   | { type: 'reverse-bar'; barId: string }
   | { type: 'repeat' }
@@ -222,15 +223,22 @@ export function edit(editor: Editor, action: Action): Editor {
         : { ...editor, model: result.model, selection: result.item, interaction: { tool: 'select' }, error: null }
     }
     case 'split-start':
-      return { ...editor, interaction: { tool: 'split', barId: action.barId }, activeLoadId: null, loadDraft: null, error: null }
+      return { ...editor, interaction: { tool: 'split', barId: action.barId, hinge: action.hinge },
+        activeLoadId: null, loadDraft: null, error: null }
     case 'split-bar': {
-      const result = splitBar(editor.model, action.barId, action.s)
+      const result = splitBar(editor.model, action.barId, action.s, {
+        hinge: editor.interaction.tool === 'split' && editor.interaction.barId === action.barId && editor.interaction.hinge,
+      })
       return 'error' in result ? { ...editor, error: result.error }
         : { ...editor, model: result.model, interaction: { tool: 'select' }, error: null,
           selection: result.item.bars.map(bar => ({ kind: 'bar', id: bar.id })) }
     }
     case 'reverse-bar': {
       const result = reverseBar(editor.model, action.barId)
+      return 'error' in result ? { ...editor, error: result.error } : { ...editor, model: result.model, error: null }
+    }
+    case 'moment-releases': {
+      const result = setMomentReleases(editor.model, action.barId, action.releaseI, action.releaseJ)
       return 'error' in result ? { ...editor, error: result.error } : { ...editor, model: result.model, error: null }
     }
     case 'repeat':

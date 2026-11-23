@@ -24,7 +24,9 @@ export interface Redundant {
 
 export function rotationNodes(model: Structure, assignments: Structure['mechanics']['assignments'] = model.mechanics.assignments) {
   const frames = new Set(assignments.filter(item => item.kind === 'frame2d').map(item => item.barId))
-  return new Set(model.bars.filter(bar => frames.has(bar.id)).flatMap(bar => [bar.startId, bar.endId]))
+  return new Set(model.bars.filter(bar => frames.has(bar.id)).flatMap(bar => [
+    ...(!bar.releaseI ? [bar.startId] : []), ...(!bar.releaseJ ? [bar.endId] : []),
+  ]))
 }
 
 export function availableRedundants(model: Structure, rotations = rotationNodes(model)): readonly Redundant[] {
@@ -154,7 +156,9 @@ export function solveForceMethod(input: AnalysisInput, ids: readonly string[]):
   const lockedRotations = new Set([...primary.rotationLocks, ...primary.supports
     .filter(support => support.kind === 'fixed' && rotations.has(support.nodeId)).map(support => support.nodeId)])
   const freeDofs = real.dofs.length - lockedTranslations - lockedRotations.size
-  const primaryIndeterminacy = input.definition.assignments.reduce((sum, bar) => sum + (bar.kind === 'frame2d' ? 3 : 1), 0) - freeDofs
+  const elasticModes = input.definition.assignments.reduce((sum, bar) => sum + (bar.kind === 'frame2d' ? 3 : 1), 0)
+    - input.model.bars.reduce((sum, bar) => sum + Number(!!bar.releaseI) + Number(!!bar.releaseJ), 0)
+  const primaryIndeterminacy = elasticModes - freeDofs
   const units: Solved[] = []
   for (const { id, nodeId, motion } of redundants) {
     const result = solveAnalysis(modelCase(base, [action(nodeId, motion)], id))

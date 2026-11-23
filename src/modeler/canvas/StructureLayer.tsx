@@ -22,10 +22,12 @@ interface LayerProps {
   loadDraft: LoadDefinition | null
   showGeometry: boolean
   showLoads: boolean
+  showIds: boolean
+  decimals: number
 }
 
 export function StructureLayer({ model, selection, hover, camera, viewport, preview, movePreview, overlaps, activeLoadId, loadDraft,
-  showGeometry, showLoads }: LayerProps) {
+  showGeometry, showLoads, showIds, decimals }: LayerProps) {
   const { nodes } = model
   const positions = useMemo(() => new Map(nodes.map(node => [node.id, worldToScreen(node, camera, viewport)])),
     [nodes, camera, viewport])
@@ -50,7 +52,16 @@ export function StructureLayer({ model, selection, hover, camera, viewport, prev
       return <g className={`member${selected ? ' is-selected' : ''}${pointed ? ' is-hovered' : ''}`} key={bar.id} data-bar-id={bar.id}>
         <line className="member-halo" x1={a.x} x2={b.x} y1={a.y} y2={b.y} />
         <line className="member-line" x1={a.x} x2={b.x} y1={a.y} y2={b.y} />
-        <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 11} textAnchor="middle">{bar.label}</text>
+        {([['i', a, b, bar.releaseI], ['j', b, a, bar.releaseJ]] as const)
+          .map(([side, tip, other, released]) => {
+            if (!released) return null
+            const fraction = Math.min(.28, 12 / Math.hypot(other.x - tip.x, other.y - tip.y))
+            return <circle key={side} data-release={side} className="member-release"
+              cx={tip.x + (other.x - tip.x) * fraction} cy={tip.y + (other.y - tip.y) * fraction} r={4.5}>
+              <title>{bar.id} · giro liberado en {side}</title>
+            </circle>
+          })}
+        {showIds && <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 11} textAnchor="middle">{bar.label}</text>}
       </g>
     })}
     {showGeometry && model.supports.map(support => {
@@ -59,7 +70,7 @@ export function StructureLayer({ model, selection, hover, camera, viewport, prev
     })}
     {(showLoads || loadDraft) && <LoadLayer model={showLoads ? model : { ...model, loads: [] }}
       positions={positions} camera={camera} viewport={viewport} activeId={activeLoadId}
-      selectedIds={selectedIds} draft={loadDraft} />}
+      selectedIds={selectedIds} draft={loadDraft} decimals={decimals} />}
     {showGeometry && model.nodes.map(node => {
       const point = positions.get(node.id)
       if (!point) return null
@@ -68,7 +79,7 @@ export function StructureLayer({ model, selection, hover, camera, viewport, prev
       return <g className={`joint${selected ? ' is-selected' : ''}${pointed ? ' is-hovered' : ''}`} key={node.id} data-node-id={node.id}>
         <circle className="joint-halo" cx={point.x} cy={point.y} r={9} />
         <circle className="joint-mark" cx={point.x} cy={point.y} r={4.5} />
-        {!overlappingIds.has(node.id) && <text x={point.x + 10} y={point.y - 9}>{node.label}</text>}
+        {showIds && !overlappingIds.has(node.id) && <text x={point.x + 10} y={point.y - 9}>{node.label}</text>}
       </g>
     })}
     {showGeometry && overlaps.map(group => {

@@ -65,6 +65,11 @@ export function developedStation(step: DevelopedMember, s: number) {
   return step.reversed ? step.to - s : step.from + s
 }
 
+export function automaticPresentation(members: readonly PlotMember[]): 'developed' | 'compact' {
+  const first = members[0]
+  return !first || developedSpan(first, members).length === members.length ? 'developed' : 'compact'
+}
+
 export function localStation(step: DevelopedMember, s: number) {
   return Math.max(0, Math.min(step.member.length, step.reversed ? step.to - s : s - step.from))
 }

@@ -5,6 +5,7 @@ import { worldToScreen } from '../../geometry/camera'
 import type { Camera, Viewport } from '../../geometry/camera'
 import type { Point } from '../../geometry/coordinates'
 import { resultNumber } from '../../app/results/ResultTable'
+import { formatResult } from '../format'
 import type { Effort, SectionCut } from './diagramFields'
 import { activeEfforts, deformationFactor, deformedPoint, diagramPoint, effortCurve, effortHeight, EFFORT_UNIT, jumpAt, xy } from './diagramModel'
 import type { AVMPreferences, DiagramModel, PlotMember, SolvedAnalysis } from './diagramModel'
@@ -37,22 +38,27 @@ function EffortPlot({ step, field, max, preferences, emphasized, camera, viewpor
   const candidates = member.fields ? member.fields.marks[field].map(({ section, kind }) => ({
     s: section.s, value: section[field], priority: kind === 'jump' ? 2 : kind === 'critical' ? 1 : 0,
   })) : [{ s: member.length / 2, value: member.bar.axialForce, priority: 1 }]
-  const marks: { point: Point; value: number; s: number }[] = []
+  const marks: { point: Point; value: number; s: number; priority: number }[] = []
   if (labels) for (const candidate of candidates.sort((x, y) => y.priority - x.priority || Math.abs(y.value) - Math.abs(x.value))) {
-    const { s, value } = candidate
+    const { s, value, priority } = candidate
+    if (priority === 1 && !preferences.extremes) continue
     const point = plot(s, heightOf(value))
     if (point.x < 30 || point.x > viewport.width - 24 || point.y < 35 || point.y > viewport.height - 14) continue
     if (marks.some(mark => Math.abs(mark.point.x - point.x) < 54 && Math.abs(mark.point.y - point.y) < 18)) continue
     if (marks.length >= 8) break
-    marks.push({ point, value, s })
+    marks.push({ point, value, s, priority })
   }
   return <g data-effort={field} data-avm-bar={member.id} className={emphasized ? 'avm-emphasized' : undefined}>
     <path className="avm-area" d={`${path} L ${xy(b)} L ${xy(a)} Z`} />
     <path className="avm-line" d={path} />
-    {marks.map(({ point, value, s }, i) => {
-      const formatted = Math.abs(value) <= max * 64 * Number.EPSILON ? '0' :
-        resultNumber(developedValue(step, field, value), .001)
-      return <g key={i} data-avm-mark={s}><circle cx={point.x} cy={point.y} r={2.3} />
+    {marks.map(({ point, value, s, priority }, i) => {
+      const physical = developedValue(step, field, value)
+      const formatted = formatResult(physical, { scale: .001, reference: max, decimals: preferences.decimals })
+      return <g key={i} data-avm-mark={s} data-label-rank={priority ? 'critical' : undefined}>
+        <title>{formatResult(physical, { scale: .001, exact: true })} {EFFORT_UNIT[field]}</title>
+        <line data-label-guide x1={point.x} y1={point.y} x2={point.x} y2={point.y}
+          stroke="currentColor" strokeWidth={.8} visibility="hidden" />
+        <circle cx={point.x} cy={point.y} r={2.3} />
         <text x={point.x} y={point.y - 7} textAnchor="middle">{formatted}</text></g>
     })}
   </g>
@@ -149,8 +155,8 @@ export const AVMLayer = memo(function AVMLayer({ model, overlay, camera, viewpor
           {hasMoment && <path d={`M ${a.x + radius} ${a.y} A ${radius} ${radius} 0 1 ${direction} ${a.x} ${a.y + (moment > 0 ? radius : -radius)}`}
             markerEnd={`url(#${arrow})`} />}
           {labels && <text x={Math.max(a.x, b.x) + 7} y={Math.min(a.y, b.y) - 8}>
-            {hasForce ? `R (${resultNumber(row.x, .001)}, ${resultNumber(row.y, .001)}) kN` : ''}
-            {hasMoment ? `${hasForce ? ' · ' : ''}Mz ${resultNumber(moment, .001)} kN·m` : ''}
+            {hasForce ? `R (${[row.x, row.y].map(value => formatResult(value, { scale: .001, reference: forceMax, decimals: preferences.decimals })).join(', ')}) kN` : ''}
+            {hasMoment ? `${hasForce ? ' · ' : ''}Mz ${formatResult(moment, { scale: .001, reference: momentMax, decimals: preferences.decimals })} kN·m` : ''}
           </text>}
         </g>
       })}

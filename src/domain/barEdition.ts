@@ -6,6 +6,17 @@ import type { Bar, Edit, Structure, StructuralNode } from './structure'
 
 type Distributed = Extract<StructuralLoad, { kind: 'distributed' }>
 
+export function setMomentReleases(model: Structure, barId: string, releaseI: boolean, releaseJ: boolean): Edit<Bar> {
+  const bar = model.bars.find(item => item.id === barId)
+  if (!bar) return { error: 'La barra no existe.' }
+  if ((releaseI || releaseJ) && model.mechanics.assignments.find(item => item.barId === barId)?.kind !== 'frame2d') {
+    return { error: 'Configura la barra como pórtico 2D para liberar sus extremos.' }
+  }
+  if (Boolean(bar.releaseI) === releaseI && Boolean(bar.releaseJ) === releaseJ) return { model, item: bar }
+  const item: Bar = { ...bar, releaseI: releaseI || undefined, releaseJ: releaseJ || undefined }
+  return { model: { ...model, bars: model.bars.map(current => current.id === barId ? item : current) }, item }
+}
+
 function withinLength(position: number, length: number): number {
   const rounding = 8 * Number.EPSILON * Math.max(length, position)
   return position > length && position - length <= rounding ? length : position
@@ -22,10 +33,13 @@ function restrictDistribution(load: Distributed, barId: string, from: number, to
 }
 
 export function splitBar(model: Structure, barId: string, s: number,
-  options?: { readonly preservePointStations?: boolean }): Edit<{ node: StructuralNode; bars: readonly [Bar, Bar] }> {
+  options?: { readonly preservePointStations?: boolean; readonly hinge?: boolean }): Edit<{ node: StructuralNode; bars: readonly [Bar, Bar] }> {
   const bar = model.bars.find(item => item.id === barId)
   const geometry = loadBarGeometry(model, barId)
   if (!bar || !geometry) return { error: 'La barra que quieres dividir no existe.' }
+  if (options?.hinge && model.mechanics.assignments.find(item => item.barId === barId)?.kind !== 'frame2d') {
+    return { error: 'Configura la barra como pórtico 2D para insertar una rótula.' }
+  }
   const { length, frame, angle } = geometry
   if (!Number.isFinite(s) || s <= GEOMETRIC_TOLERANCE || length - s <= GEOMETRIC_TOLERANCE) {
     return { error: 'El corte debe quedar dentro de la barra y dejar dos tramos de longitud válida.' }
@@ -47,8 +61,11 @@ export function splitBar(model: Structure, barId: string, s: number,
   const node = { ...point, id: nodeId, label: nodeId }
   const firstId = `B${model.nextBar}`
   const secondId = `B${model.nextBar + 1}`
-  const first = { ...bar, id: firstId, endId: nodeId, label: bar.label === bar.id ? firstId : bar.label }
-  const second = { ...bar, id: secondId, startId: nodeId, label: bar.label === bar.id ? secondId : bar.label }
+  const { releaseI, releaseJ, ...member } = bar
+  const first: Bar = { ...member, id: firstId, endId: nodeId, label: bar.label === bar.id ? firstId : bar.label,
+    ...(releaseI && { releaseI }), ...(options?.hinge && { releaseJ: true }) }
+  const second: Bar = { ...member, id: secondId, startId: nodeId, label: bar.label === bar.id ? secondId : bar.label,
+    ...(releaseJ && { releaseJ }), ...(options?.hinge && { releaseI: true }) }
   let nextLoad = model.nextLoad
   const loads = model.loads.flatMap((load): readonly StructuralLoad[] => {
     if (load.kind === 'nodal' || load.barId !== barId) return [load]
@@ -89,7 +106,9 @@ export function reverseBar(model: Structure, barId: string): Edit<Bar> {
   const bar = model.bars.find(item => item.id === barId)
   const geometry = loadBarGeometry(model, barId)
   if (!bar || !geometry) return { error: 'La barra que quieres invertir no existe.' }
-  const reversed = { ...bar, startId: bar.endId, endId: bar.startId }
+  const { releaseI, releaseJ, ...member } = bar
+  const reversed: Bar = { ...member, startId: bar.endId, endId: bar.startId,
+    ...(releaseI && { releaseJ: releaseI }), ...(releaseJ && { releaseI: releaseJ }) }
   const loads = model.loads.map((load): StructuralLoad => {
     if (load.kind === 'nodal' || load.barId !== barId) return load
     const vector = (value: Point): Point => load.frame === 'global' ? value : { x: -value.x || 0, y: -value.y || 0 }

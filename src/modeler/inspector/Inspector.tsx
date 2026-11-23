@@ -52,6 +52,19 @@ function SelectionDetails({ editor, dispatch }: { editor: Editor; dispatch: Disp
         <dt>Y UCS</dt><dd>{formatNumber(localNode.y, 9)} m</dd>
       </>}
     </dl>}
+    {bar && editor.interaction.tool === 'select' &&
+      model.mechanics.assignments.some(item => item.barId === bar.id && item.kind === 'frame2d') &&
+      <fieldset className="precision-form">
+        <legend>Rótula / Liberar momento</legend>
+        <label className="toggle-row"><input type="checkbox" checked={bar.releaseI === true}
+          onChange={event => dispatch({ type: 'moment-releases', barId: bar.id, releaseI: event.target.checked, releaseJ: !!bar.releaseJ })} />
+          Liberar extremo inicial (i)</label>
+        <label className="toggle-row"><input type="checkbox" checked={bar.releaseJ === true}
+          onChange={event => dispatch({ type: 'moment-releases', barId: bar.id, releaseI: !!bar.releaseI, releaseJ: event.target.checked })} />
+          Liberar extremo final (j)</label>
+        <button type="button" className="button secondary"
+          onClick={() => dispatch({ type: 'split-start', barId: bar.id, hinge: true })}>Insertar rótula interior</button>
+      </fieldset>}
     {start && end && geometry && <dl className="properties">
       <dt>Nudo inicial</dt><dd>{start.id}</dd>
       <dt>Nudo final</dt><dd>{end.id}</dd>
@@ -97,7 +110,8 @@ export function Inspector({ editor, dispatch, overlaps }: {
           </li>)}
         </ul>
       </section>}
-      {interaction.tool === 'split' ? <SplitForm key={interaction.barId} model={model} barId={interaction.barId} dispatch={dispatch} />
+      {interaction.tool === 'split' ? <SplitForm key={`${interaction.barId}:${interaction.hinge}`} model={model}
+        barId={interaction.barId} hinge={interaction.hinge} dispatch={dispatch} />
         : drawing && <CoordinateForm editor={editor} dispatch={dispatch} key={`${interaction.tool}-${formStage}-${interaction.tool === 'edit-node' ? interaction.nodeId : ''}`} />}
       {editor.selection.length > 0 && <SelectionDetails editor={editor} dispatch={dispatch} />}
       {selectedBars.length > 0 && <section className="side-section">

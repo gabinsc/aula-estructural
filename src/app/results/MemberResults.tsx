@@ -3,15 +3,18 @@ import { evaluateFrameSection } from '../../analysis'
 import type { AnalysisResult, FrameResult } from '../../analysis'
 import { ResultTable, resultNumber } from './ResultTable'
 import type { SectionCut } from '../../modeler/results/diagramFields'
+import { formatResult } from '../../modeler/format'
 
 type Bars = Extract<AnalysisResult, { ok: true }>['bars']
 
-export function MemberResults({ bars, selectedId, select, cut, onCut }: {
+export function MemberResults({ bars, selectedId, select, cut, onCut, learning, decimals }: {
   bars: Bars
   selectedId?: string
   select: (id: string) => void
   cut?: SectionCut
   onCut: (cut: SectionCut) => void
+  learning: boolean
+  decimals: number
 }) {
   const bar = bars.find(item => item.barId === selectedId) ?? bars[0]
   return bar && <section className="result-section">
@@ -22,17 +25,19 @@ export function MemberResults({ bars, selectedId, select, cut, onCut }: {
       </select>
     </label>
     <button className="button secondary" type="button" onClick={() => select(bar.barId)}>Resaltar {bar.barId} en el modelo</button>
-    {bar.kind === 'frame2d' ? <FrameDetails key={bar.barId} bar={bar} cut={cut} onCut={onCut} /> : <>
+    {bar.kind === 'frame2d' ? <FrameDetails key={bar.barId} bar={bar} cut={cut} onCut={onCut} learning={learning} decimals={decimals} /> : <>
       <p className="result-hint">Armadura 2D · {bar.axialForce > 0 ? 'Tracción' : bar.axialForce < 0 ? 'Compresión' : 'Axial nulo'}</p>
       <dl className="result-facts">
-        <div><dt>N (kN)</dt><dd>{resultNumber(bar.axialForce, .001)}</dd></div>
-        <div><dt>Variación de longitud (mm)</dt><dd>{resultNumber(bar.elongation, 1000)}</dd></div>
+        <div><dt>N (kN)</dt><dd>{formatResult(bar.axialForce, { scale: .001, decimals })}</dd></div>
+        <div><dt>Variación de longitud (mm)</dt><dd>{formatResult(bar.elongation, { scale: 1000, decimals: decimals + 1 })}</dd></div>
       </dl>
     </>}
   </section>
 }
 
-function FrameDetails({ bar, cut, onCut }: { bar: FrameResult; cut?: SectionCut; onCut: (cut: SectionCut) => void }) {
+function FrameDetails({ bar, cut, onCut, learning, decimals }: {
+  bar: FrameResult; cut?: SectionCut; onCut: (cut: SectionCut) => void; learning: boolean; decimals: number
+}) {
   const initial = cut?.barId === bar.barId ? cut : undefined
   const [station, setStation] = useState(initial ? String(initial.s) : '0')
   const [side, setSide] = useState<'left' | 'right'>(initial?.side ?? 'right')
@@ -50,11 +55,17 @@ function FrameDetails({ bar, cut, onCut }: { bar: FrameResult; cut?: SectionCut;
   function link(s: number, side: SectionCut['side']) {
     if (s >= 0 && s <= bar.length) onCut({ barId: bar.barId, s, side, source: 'table' })
   }
+  function show(value: number, scale = 1, reference?: number) {
+    const visual = formatResult(value, { scale, decimals: scale === 1000 ? decimals + 1 : decimals, reference })
+    return <span title={formatResult(value, { scale, exact: true })}>{learning && visual !== '0' ? resultNumber(value, scale) : visual}</span>
+  }
+  const reference = (field: 'N' | 'V' | 'M') => bar.sections.reduce((max, row) => Math.max(max, Math.abs(row[field])), 0)
   return <>
     <p className="result-hint">Pórtico 2D · acciones de extremo positivas según los ejes locales.</p>
     <ResultTable label="Acciones locales de extremo" headings={['Extremo', 'Fx′ (kN)', 'Fy′ (kN)', 'Mz (kN·m)']}
       rows={['Inicial', 'Final'].map((label, i) => ({
-        id: label, cells: [label, ...bar.endForces.slice(i * 3, i * 3 + 3).map(value => resultNumber(value, .001))],
+        id: label, cells: [label, ...(['N', 'V', 'M'] as const).map((field, j) =>
+          show(bar.endForces[i * 3 + j]!, .001, reference(field)))],
       }))} />
     <h4>Sección interior</h4>
     <div className="result-controls">
@@ -74,8 +85,8 @@ function FrameDetails({ bar, cut, onCut }: { bar: FrameResult; cut?: SectionCut;
     </div>
     <p className="result-hint">Desde el extremo inicial, entre 0 y {resultNumber(bar.length)} m.</p>
     {section ? <ResultTable label="Valores de sección" headings={['s (m)', 'N (kN)', 'V (kN)', 'M (kN·m)', 'u′ (mm)', 'v′ (mm)', 'θ (rad)']}
-      rows={[{ id: 'section', cells: [resultNumber(section.s), resultNumber(section.N, .001), resultNumber(section.V, .001),
-        resultNumber(section.M, .001), resultNumber(section.u, 1000), resultNumber(section.v, 1000), resultNumber(section.rotation)] }]} />
+      rows={[{ id: 'section', cells: [show(section.s), show(section.N, .001, reference('N')), show(section.V, .001, reference('V')),
+        show(section.M, .001, reference('M')), show(section.u, 1000), show(section.v, 1000), show(section.rotation)] }]} />
       : <p className="form-error" role="status">Introduce una estación representable dentro de la barra.</p>}
     <details className="result-detail">
       <summary>Estaciones registradas</summary>

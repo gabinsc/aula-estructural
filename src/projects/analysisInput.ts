@@ -16,7 +16,8 @@ export function analysisRevision(model: Structure, loadCase: AnalysisCase): stri
   const sections = new Map(library.sections.map(entry => [entry.id, entry]))
   return JSON.stringify([
     ordered(model.nodes, item => item.id).map(({ id, x, y }) => [id, x, y]),
-    ordered(model.bars, item => item.id).map(({ id, startId, endId }) => [id, startId, endId]),
+    ordered(model.bars, item => item.id).map(({ id, startId, endId, releaseI, releaseJ }) =>
+      [id, startId, endId, releaseI === true, releaseJ === true]),
     ordered(model.supports, item => item.nodeId).map(item =>
       [item.nodeId, item.kind, item.kind === 'roller' ? item.surfaceAngle : null]),
     ordered(model.loads, item => item.id).map(load => {

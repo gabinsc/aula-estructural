@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { axleStation, curveAt } from '../../analysis/influenceCurve'
 import type { CurvePoint } from '../../analysis/influenceCurve'
 import { mobileLocation } from '../../analysis/influence'
@@ -8,6 +9,11 @@ import type { Camera, Viewport } from '../../geometry/camera'
 import { loadBarGeometry } from '../../domain/load'
 import { toGlobal } from '../../geometry/coordinates'
 import { ResultTable, resultNumber } from './ResultTable'
+import type { InfluenceResultDetail } from '../../analysis/methods'
+import { DEFAULT_BAND_OPTIONS, InfluenceBand, InfluenceReference, influenceUnits, plotStation } from './InfluenceBands'
+import type { InfluenceBandData } from './InfluenceBands'
+import type { DisplayedInfluence } from './InfluenceControls'
+const InfluenceReport = lazy(async () => ({ default: (await import('./InfluenceReport')).InfluenceReport }))
 
 export interface MovingPosition { readonly mode: 'unit' | 'train'; readonly s: number; readonly side?: CurvePoint['side'] }
 
@@ -50,12 +56,6 @@ export function InfluenceOverlay({ model, detail, position, camera, viewport }: 
   </g>
 }
 
-function units(detail: InfluenceDetail) {
-  const { target } = detail
-  if (target.kind === 'effort') return target.field === 'M' ? 'N·m' : 'N'
-  return target.kind === 'reaction' ? 'N' : target.motion.kind === 'rotation' ? 'rad' : 'm'
-}
-
 function targetLabel(detail: InfluenceDetail) {
   const target = detail.target
   if (target.kind === 'reaction') return `Reacción de ${target.nodeId} · (${resultNumber(target.direction.x)}, ${resultNumber(target.direction.y)}) global`
@@ -64,9 +64,10 @@ function targetLabel(detail: InfluenceDetail) {
   return `${target.field} en ${target.barId} · s = ${resultNumber(target.s)} m · ${target.side === 'left' ? 'lado izquierdo' : 'lado derecho'}`
 }
 
-export function InfluenceResults({ detail, learning, select, position, onPosition }: {
-  detail: InfluenceDetail; learning: boolean; select: (item: Selection) => void; position: MovingPosition
+export function InfluenceResults({ detail, learning, select, position, onPosition, model, lines, changeLines, decimals }: {
+  detail: InfluenceResultDetail; learning: boolean; select: (item: Selection) => void; position: MovingPosition
   onPosition: (position: MovingPosition) => void
+  model: Structure; lines: readonly DisplayedInfluence[]; changeLines: (lines: readonly DisplayedInfluence[]) => void; decimals: number
 }) {
   const side = position.side ?? 'exact'
   const { train } = detail
@@ -74,7 +75,7 @@ export function InfluenceResults({ detail, learning, select, position, onPositio
   const curve = isTrain && train ? train.envelope : detail
   const first = curve.knots[0]!.s, last = curve.knots.at(-1)!.s
   const label = isTrain ? 'Respuesta del tren' : 'Línea de influencia'
-  const unit = isTrain ? units(detail) : `${units(detail)}/N`
+  const unit = isTrain ? influenceUnits(detail) : `${influenceUnits(detail)}/N`
   const knotAt = curve.knots.find(knot => knot.s === position.s)
   const value = curveAt(curve.pieces, curve.knots, position.s, side)
   const maxAbs = Math.max(Math.abs(curve.max.value), Math.abs(curve.min.value))
@@ -90,6 +91,18 @@ export function InfluenceResults({ detail, learning, select, position, onPositio
   const target = detail.target
   const marks = mobileAxles(detail, position)
   const limits = [['Mínimo', curve.min], ['Máximo', curve.max]] as const
+  const computed = new Map(detail.lines?.map(line => [line.id, line]))
+  const graphs: InfluenceBandData[] = lines.flatMap(line => {
+    const answer = computed.get(line.id)
+    return answer && 'detail' in answer ? [{ ...line, detail: answer.detail }] : []
+  })
+  const primary: InfluenceBandData = { id: 'principal', name: targetLabel(detail), target: detail.target,
+    color: '#0d7886', scale: 1, visible: true, detail }
+  const patch = (id: string, item: Partial<DisplayedInfluence>) =>
+    changeLines(lines.map(line => line.id === id ? { ...line, ...item } : line))
+  function reorder(index: number, destination: number) {
+    changeLines(lines.map((item, i) => i === index ? lines[destination]! : i === destination ? lines[index]! : item))
+  }
   return <section className="result-section method-results" aria-label="Líneas de influencia">
     <h3>{label} · respuesta seleccionada</h3>
     <button type="button" className="result-link" onClick={() => select(target.kind === 'effort'
@@ -101,7 +114,7 @@ export function InfluenceResults({ detail, learning, select, position, onPositio
         move({ mode, s: Math.max(range[0]!.s, Math.min(range.at(-1)!.s, position.s)) })
       }}><option value="unit">Unitaria de 1 N</option><option value="train">{train.spec.name} · {train.spec.id}</option></select>
     </label>}
-    <figure className="influence-chart">
+    {!lines.length && <figure className="influence-chart">
       <figcaption>{unit} · escala ±{resultNumber(maxAbs)} · S en metros</figcaption>
       <svg viewBox="0 0 600 167" role="img" aria-label={label} onPointerDown={event => {
         const rect = event.currentTarget.getBoundingClientRect()
@@ -124,7 +137,51 @@ export function InfluenceResults({ detail, learning, select, position, onPositio
         <circle cx={x(position.s)} cy={y(value)} r={4} className="influence-current" />
         <text x={36} y={158}>{resultNumber(first)}</text><text x={574} y={158} textAnchor="end">{resultNumber(last)}</text>
       </svg>
-    </figure>
+    </figure>}
+    {!!lines.length && <section className="influence-multiple" aria-label="Líneas mostradas">
+      <h4>Líneas mostradas</h4>
+      <div className="influence-band-stack">
+        <svg viewBox="0 0 600 94" role="img" aria-label="Recorrido común de las líneas">
+          <InfluenceReference model={model} detail={detail} width={600} position={position}
+            decimals={decimals} hinges dimensions supports />
+        </svg>
+        {graphs.filter(line => line.visible).map(line => <svg key={line.id} viewBox="0 0 600 116" role="img"
+          aria-label={line.name || line.id} onClick={event => {
+            const transform = event.currentTarget.getScreenCTM()?.inverse()
+            if (!transform) return
+            const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(transform)
+            const x0 = plotStation(600, first, last, first), x1 = plotStation(600, first, last, last)
+            move({ ...position, s: first + (last - first) * Math.max(0, Math.min(1, (point.x - x0) / (x1 - x0))) })
+          }}>
+          <InfluenceBand line={line} width={600} position={position} options={DEFAULT_BAND_OPTIONS} decimals={decimals} />
+        </svg>)}
+      </div>
+      <details className="result-detail"><summary>Configurar líneas mostradas</summary>
+        {lines.map((line, index) => {
+          const answer = computed.get(line.id)
+          return <fieldset className="method-fields" key={line.id} aria-label={line.id}>
+            <legend>{line.id}</legend>
+            <div className="result-controls">
+              <label className="result-field">Nombre {line.id}<input value={line.name} maxLength={54}
+                onChange={event => patch(line.id, { name: event.target.value })} /></label>
+              <label><input type="checkbox" checked={line.visible} onChange={event => patch(line.id, { visible: event.target.checked })} />
+                Visible {line.id}</label>
+              <label className="result-field">Color {line.id}<input type="color" value={line.color}
+                onChange={event => patch(line.id, { color: event.target.value })} /></label>
+              <label className="result-field">Escala {line.id}<input type="range" min=".25" max="1" step=".05" value={line.scale}
+                onChange={event => patch(line.id, { scale: Number(event.target.value) })} /></label>
+              <button className="button secondary" type="button" disabled={!index} aria-label={`Subir ${line.id}`}
+                onClick={() => reorder(index, index - 1)}>↑</button>
+              <button className="button secondary" type="button" disabled={index === lines.length - 1} aria-label={`Bajar ${line.id}`}
+                onClick={() => reorder(index, index + 1)}>↓</button>
+              <button className="button secondary" type="button" onClick={() =>
+                changeLines(lines.filter(item => item.id !== line.id))}>Quitar {line.id}</button>
+            </div>
+            {answer && 'error' in answer && <p className="model-error" role="alert">{answer.error}</p>}
+          </fieldset>
+        })}
+      </details>
+    </section>}
     <label className="result-field">Posición móvil S (m)
       <input type="range" min={first} max={last} step="any" value={position.s}
         onChange={event => move({ ...position, s: Number(event.target.value) })} />
@@ -148,13 +205,16 @@ export function InfluenceResults({ detail, learning, select, position, onPositio
       <p>Se mueve una unidad de 1 N en la dirección global ({resultNumber(detail.direction.x)}, {resultNumber(detail.direction.y)}).
         El motor resuelve las cargas equivalentes de las estaciones de prueba. Cada intervalo admite una ordenada cúbica o de grado menor.</p>
       <p>Los extremos se obtienen en las estaciones singulares y en las raíces interiores de la derivada. En el tren se evalúa R = Σ Pᵢ·LI(Sᵢ), incluidos los límites al entrar o salir del camino.</p>
-      <p>Contraste directo de la línea · S = {resultNumber(detail.verification.s)} m · error {resultNumber(detail.verification.maxError)} {units(detail)}/N.</p>
-      {train && <p>Contraste directo del tren · S = {resultNumber(train.verification.s)} m · suma {resultNumber(train.verification.ordinate)} {units(detail)} · motor {resultNumber(train.verification.direct)} {units(detail)}.</p>}
+      <p>Contraste directo de la línea · S = {resultNumber(detail.verification.s)} m · error {resultNumber(detail.verification.maxError)} {influenceUnits(detail)}/N.</p>
+      {train && <p>Contraste directo del tren · S = {resultNumber(train.verification.s)} m · suma {resultNumber(train.verification.ordinate)} {influenceUnits(detail)} · motor {resultNumber(train.verification.direct)} {influenceUnits(detail)}.</p>}
       <ResultTable label="Tramos del recorrido" headings={['Barra', 'Nudo inicial del camino', 'Nudo final', 'S inicial (m)', 'S final (m)', 's local']}
         rows={detail.path.map(step => ({ id: step.barId, cells: [
           <button type="button" className="result-link" onClick={() => select({ kind: 'bar', id: step.barId })}>{step.barId}</button>,
           step.startId, step.endId, resultNumber(step.from), resultNumber(step.to), step.reversed ? 'Decreciente' : 'Creciente',
         ] }))} />
     </>}
+    <Suspense fallback={<p role="status">Preparando los controles del reporte…</p>}>
+      <InfluenceReport model={model} detail={detail} lines={lines.length ? graphs : [primary]} position={position} decimals={decimals} />
+    </Suspense>
   </section>
 }

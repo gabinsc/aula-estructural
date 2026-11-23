@@ -17,6 +17,8 @@ export interface Bar {
   readonly label: string
   readonly startId: string
   readonly endId: string
+  readonly releaseI?: true
+  readonly releaseJ?: true
 }
 
 export interface Structure {

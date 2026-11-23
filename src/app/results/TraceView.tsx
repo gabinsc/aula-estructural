@@ -82,7 +82,8 @@ export function TraceView({ result, barId, select, cut, showCut }: {
   const component = trace.components[componentIndex] ?? trace.components[0]
   const element = trace.elements.find(item => item.barId === barId) ?? trace.elements[0]
   const dofs = result.dofs.map(item => `${item.nodeId}.${item.axis}`)
-  const global = element?.dofIndices.map(index => dofs[index]!) ?? []
+  const global = element?.dofIndices.map((index, slot) => index === -1 ?
+    `θ${slot === 2 ? 'i' : 'j'} condensado` : dofs[index]!) ?? []
   const local = element?.localK?.length === 4 ? ['ui', 'uj'] : ['ui', 'vi', 'θi', 'uj', 'vj', 'θj']
   const active = component?.dofIndices.map(index => dofs[index]!) ?? []
   const free = component?.reducedDofs.map(item => `${item.nodeId}.${item.axis}`) ?? []
@@ -125,7 +126,8 @@ export function TraceView({ result, barId, select, cut, showCut }: {
     const reducedAxis = (index: number) => component?.reducedDofs[index]?.axis === 'rz' ? 'rz' : 'axial'
     const localAxis = (index: number) => local[index]?.startsWith('θ') ? 'rz' : 'axial'
     if (step === 'local') return stiffnessUnit(localAxis(row), localAxis(column))
-    if (step === 'element' && element) return stiffnessUnit(result.dofs[element.dofIndices[row]!]!.axis, result.dofs[element.dofIndices[column]!]!.axis)
+    if (step === 'element' && element) return stiffnessUnit(result.dofs[element.dofIndices[row] as number]?.axis ?? 'rz',
+      result.dofs[element.dofIndices[column] as number]?.axis ?? 'rz')
     if (step === 'Kr') return stiffnessUnit(reducedAxis(row), reducedAxis(column))
     if (step === 'loads') return localAxis(row) === 'rz' ? 'N·m' : 'N'
     if (step === 'Fr') return reducedAxis(row) === 'rz' ? 'N·m' : 'N'
@@ -173,6 +175,9 @@ export function TraceView({ result, barId, select, cut, showCut }: {
       {(step === 'supports' || step === 'Q') && <SupportsDetails trace={trace} select={select} />}
       {element && ['axes', 'properties', 'local', 'transform'].includes(step) &&
         <ElementDetails element={element} local={local} full={step === 'local' || step === 'transform'} />}
+      {element?.dofIndices.includes(-1) && ['local', 'element', 'loads', 'recovery'].includes(step) &&
+        <p className="result-hint">Condensación de giros liberados. K* = Kaa − Kar·Krr⁻¹·Kra y f* = fa − Kar·Krr⁻¹·fr.
+          Las posiciones condensadas se muestran en cero. El giro de extremo se recupera resolviendo Krr·θr = fr − Kra·ua.</p>}
       {matrix && <MatrixBlock key={`${step}:${usesElement ? element?.barId : ''}:${componentIndex}`} matrix={matrix} inspect={inspect} />}
       {step === 'loads' && element && <EquivalentDetails element={element} result={result} select={select} />}
       {entry && (step === 'K' || step === 'F') && <MatrixTermDetails result={result} trace={trace} force={step === 'F'}

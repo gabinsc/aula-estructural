@@ -50,6 +50,9 @@ export function cadActions(editor: Editor, dispatch: Dispatch<Action>, hit: Sele
     }
     if (hit.kind === 'bar') {
       command('Dividir barra', { type: 'split-start', barId: hit.id })
+      if (editor.model.mechanics.assignments.some(item => item.barId === hit.id && item.kind === 'frame2d')) {
+        command('Insertar rótula interior', { type: 'split-start', barId: hit.id, hinge: true })
+      }
       command('Invertir sentido', { type: 'reverse-bar', barId: hit.id })
     }
     if (hit.kind === 'load' && behind) {

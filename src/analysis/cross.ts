@@ -67,8 +67,8 @@ export function solveCross(input: AnalysisInput):
   const reference = solveAnalysis({ ...input, includeTrace: true })
   if (!reference.ok) return methodFailure(input, 'El modelo no es estable para distribuir momentos.', 'UNSTABLE_OR_SINGULAR', reference.diagnostics)
   const { model } = base
-  const stiffness = assembleModel(model)
-  const { K, F, equivalentLocal, memberLoads } = stiffness
+  const stiffness = assembleModel(model, true)
+  const { K, F, equivalentLocal, condensedLocal, memberLoads } = stiffness
   const byBar = new Map(model.bars.map(bar => [bar.barId, bar]))
   const u = reference.trace!.u.slice()
   const members = model.bars.flatMap(bar => bar.kind === 'frame2d' ? [bar] : [])
@@ -84,11 +84,15 @@ export function solveCross(input: AnalysisInput):
     const [xi, yi, , xj, yj] = bar.dofIndices
     const { y: chord } = toLocalVector({ x: u[xj]! - u[xi]!, y: u[yj]! - u[yi]! }, bar.unit)
     maxChordMoment = Math.max(maxChordMoment, Math.abs(chord) * (6 * (bar.EI / bar.length) / bar.length))
-    const k = 4 * (bar.EI / bar.length)
-    const fem = equivalentLocal.get(bar.barId)!
+    const bending = bar.EI / bar.length
+    const fem = condensedLocal.get(bar.barId)!
     const i = `${bar.barId}:i`, j = `${bar.barId}:j`
-    for (const [id, opposite, nodeId, value] of [[i, j, bar.startId, -fem[2]], [j, i, bar.endId, -fem[5]]] as const) {
-      incident.get(nodeId)!.push({ id, opposite, barId: bar.barId, nodeId, initial: value, stiffness: k, carry: .5, factor: 0 })
+    for (const [id, opposite, nodeId, value, released, farReleased] of [
+      [i, j, bar.startId, -fem[2], bar.releaseI, bar.releaseJ], [j, i, bar.endId, -fem[5], bar.releaseJ, bar.releaseI],
+    ] as const) {
+      if (released) continue
+      const k = (farReleased ? 3 : 4) * bending
+      incident.get(nodeId)!.push({ id, opposite, barId: bar.barId, nodeId, initial: value, stiffness: k, carry: farReleased ? 0 : .5, factor: 0 })
       scale = Math.max(scale, Math.abs(value), Math.abs(referenceEnds[id]!))
     }
   }
@@ -105,18 +109,20 @@ export function solveCross(input: AnalysisInput):
     const sum = compensatedSum(ends.map(end => end.stiffness))
     totalStiffness.set(nodeId, sum)
     scale = Math.max(scale, Math.abs(applied))
-    u[model.dofByNode.get(nodeId)![2]!] = 0
+    const rz = model.dofByNode.get(nodeId)![2]
+    if (rz !== undefined) u[rz] = 0
     return { nodeId, fixed, applied, ends: ends.map(end => ({ ...end, factor: fixed ? 0 : end.stiffness / sum })) }
   })
   if (!Number.isFinite(maxChordMoment) || maxChordMoment > 1e-7 + 1e-8 * scale) {
     return methodFailure(input, 'Cross sin traslación lateral no es aplicable: las traslaciones relativas producen momentos de cuerda apreciables.')
   }
-  const free = joints.filter(joint => !joint.fixed)
+  const free = joints.filter(joint => !joint.fixed && joint.ends.length > 0)
   if (free.some(joint => !Number.isFinite(totalStiffness.get(joint.nodeId)!) || totalStiffness.get(joint.nodeId)! <= 0 ||
     Math.abs(compensatedSum(joint.ends.map(end => end.factor)) - 1) > 1e-12)) {
     return methodFailure(input, 'Rigideces o factores de distribución inválidos.', 'NUMERICAL_FAILURE')
   }
-  const moments = Object.fromEntries(joints.flatMap(joint => joint.ends.map(end => [end.id, end.initial] as const)))
+  const moments = Object.fromEntries(Object.keys(referenceEnds).map(key => [key, 0]))
+  for (const joint of joints) for (const end of joint.ends) moments[end.id] = end.initial
   const imbalance = (joint: CrossJoint) => compensatedSum(joint.ends.map(end => moments[end.id]!)) - joint.applied
   const maximum = () => free.reduce((max, joint) => Math.max(max, Math.abs(imbalance(joint))), 0)
   const tolerance = 1e-9 + 1e-12 * scale
@@ -150,9 +156,10 @@ export function solveCross(input: AnalysisInput):
     const [x, y, rz] = model.dofByNode.get(nodeId)!
     return { nodeId, x: R[x]!, y: R[y]!, ...(moment !== undefined && { moment: R[rz!]! }) }
   })
-  const displacements = reference.displacements.map(({ nodeId, x, y }) => ({
-    nodeId, x, y, rotation: u[model.dofByNode.get(nodeId)![2]!]!,
-  }))
+  const displacements = reference.displacements.map(({ nodeId, x, y }) => {
+    const rz = model.dofByNode.get(nodeId)![2]
+    return { nodeId, x, y, ...(rz !== undefined && { rotation: u[rz]! }) }
+  })
   try {
     const bars = members.map(bar => recoverFrame(bar, u, memberLoads.get(bar.barId) ?? [], equivalentLocal.get(bar.barId)!))
     const checked = model.components.map((component, index) => checkComponent(model, component,
@@ -164,7 +171,8 @@ export function solveCross(input: AnalysisInput):
     const maxMomentError = Math.max(0, ...Object.keys(moments).map(id => Math.abs(moments[id]! - referenceEnds[id]!)))
     const maxReactionError = Math.max(0, ...reactions.map((item, i) => Math.hypot(
       item.x - reference.reactions[i]!.x, item.y - reference.reactions[i]!.y)))
-    const maxRotationError = Math.max(0, ...displacements.map((item, i) => Math.abs(item.rotation - reference.displacements[i]!.rotation!)))
+    const maxRotationError = Math.max(0, ...displacements.map((item, i) =>
+      Math.abs((item.rotation ?? 0) - (reference.displacements[i]!.rotation ?? 0))))
     const recoveredError = Math.max(0, ...bars.flatMap(bar => [
       Math.abs(bar.endForces[2] - moments[`${bar.barId}:i`]!),
       Math.abs(bar.endForces[5] - moments[`${bar.barId}:j`]!),

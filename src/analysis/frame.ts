@@ -2,17 +2,39 @@ import type { Point } from '../geometry/coordinates'
 import type { FrameInteriorLoad, FrameResult, FrameSection, FrameVector, PreparedFrame } from './contracts'
 import { compensatedSum } from './summation'
 
-type FrameGeometry = Pick<PreparedFrame, 'length' | 'unit' | 'axialStiffness' | 'EI'>
-export type FrameEnergyMode = { readonly axial: number; readonly transverse: number; readonly spin: number; readonly stiffness: number; readonly endSign: number }
+type FrameGeometry = Pick<PreparedFrame, 'length' | 'unit' | 'axialStiffness' | 'EI' | 'releaseI' | 'releaseJ'>
+export type FrameEnergyMode = { readonly axial: number; readonly transverse: number; readonly spinI: number; readonly spinJ: number; readonly stiffness: number }
 
 /** Tres modos energéticos: extensión, flexión simétrica y diferencia de giros. */
 export function frameEnergyModes(bar: FrameGeometry): readonly FrameEnergyMode[] {
   const bending = bar.EI / bar.length
-  return [
-    { axial: -1, transverse: 0, spin: 0, stiffness: bar.axialStiffness, endSign: 1 },
-    { axial: 0, transverse: 2 / bar.length, spin: 1, stiffness: 3 * bending, endSign: 1 },
-    { axial: 0, transverse: 0, spin: 1, stiffness: bending, endSign: -1 },
-  ]
+  const axial = { axial: -1, transverse: 0, spinI: 0, spinJ: 0, stiffness: bar.axialStiffness }
+  if (bar.releaseI && bar.releaseJ) return [axial]
+  if (bar.releaseI || bar.releaseJ) return [axial, { axial: 0, transverse: 1 / bar.length,
+    spinI: bar.releaseI ? 0 : 1, spinJ: bar.releaseJ ? 0 : 1, stiffness: 3 * bending }]
+  return [axial,
+    { axial: 0, transverse: 2 / bar.length, spinI: 1, spinJ: 1, stiffness: 3 * bending },
+    { axial: 0, transverse: 0, spinI: 1, spinJ: -1, stiffness: bending }]
+}
+
+/** Schur complement in energy form. Released slots remain padded with zeros for trace display. */
+export function condensedFrameStiffness(bar: FrameGeometry): Float64Array {
+  if (!bar.releaseI && !bar.releaseJ) return frameLocalStiffness(bar)
+  const modes = frameEnergyModes(bar).map(({ axial, transverse, spinI, spinJ, stiffness }) => ({
+    stiffness, direction: [axial, transverse, spinI, -axial, -transverse, spinJ],
+  }))
+  return Float64Array.from({ length: 36 }, (_, index) => compensatedSum(modes.map(({ stiffness, direction }) =>
+    stiffness * direction[Math.floor(index / 6)]! * direction[index % 6]!)))
+}
+
+/** Eliminate the rotational load block with dimensionless factors from its 1×1 or 2×2 solve. */
+export function condenseFrameLoad(bar: FrameGeometry, load: FrameVector): FrameVector {
+  if (!bar.releaseI && !bar.releaseJ) return load
+  const [xi, yi, mi, xj, yj, mj] = load
+  const shift = bar.releaseI && bar.releaseJ ? (mi + mj) / bar.length
+    : 1.5 * (bar.releaseI ? mi : mj) / bar.length
+  return [xi, yi - shift, bar.releaseI ? 0 : mi - mj / 2,
+    xj, yj + shift, bar.releaseJ ? 0 : mj - mi / 2]
 }
 
 export function frameLocalStiffness(bar: FrameGeometry): Float64Array {
@@ -135,16 +157,36 @@ export function evaluateFrameSection(bar: Pick<FrameResult, 'length' | 'EA' | 'E
 }
 
 export function recoverFrame(bar: PreparedFrame, u: Float64Array, loads: readonly FrameInteriorLoad[], equivalentLocal: FrameVector): FrameResult {
-  const localDisplacements = transformFrameVector(frameVector(i => u[bar.dofIndices[i]!]!), bar.unit, toLocalVector)
-  const [ui, vi, ti, uj, vj, tj] = localDisplacements
+  const displacements = transformFrameVector(frameVector(i => u[bar.dofIndices[i]!] ?? 0), bar.unit, toLocalVector)
+  const [ui, vi, originalI, uj, vj, originalJ] = displacements
   const elongation = uj - ui
   const axial = bar.axialStiffness * elongation
   const bending = bar.EI / bar.length
+  const chord = (vj - vi) / bar.length
+  const [mi, mj] = [equivalentLocal[2], equivalentLocal[5]]
+  // Solve Krr θr = fr − Kra ua. Compute in chord-relative coordinates.
+  let relativeI = originalI - chord
+  let relativeJ = originalJ - chord
+  if (bar.releaseI && bar.releaseJ) {
+    relativeI = (mi - mj / 2) / (3 * bending)
+    relativeJ = (mj - mi / 2) / (3 * bending)
+  } else if (bar.releaseI) relativeI = mi / (4 * bending) - relativeJ / 2
+  else if (bar.releaseJ) relativeJ = mj / (4 * bending) - relativeI / 2
+  const localDisplacements: FrameVector = [ui, vi, bar.releaseI ? chord + relativeI : originalI,
+    uj, vj, bar.releaseJ ? chord + relativeJ : originalJ]
+  const ti = localDisplacements[2]
+  const tj = localDisplacements[5]
   const symmetric = 3 * bending * (ti + tj - 2 * ((vj - vi) / bar.length))
   const antisymmetric = bending * (ti - tj)
-  const shear = 2 * symmetric / bar.length
-  const elastic: FrameVector = [-axial, shear, symmetric + antisymmetric, axial, -shear, symmetric - antisymmetric]
-  const endForces = frameVector(i => elastic[i]! - equivalentLocal[i]!)
+  const condensed = condenseFrameLoad(bar, equivalentLocal)
+  // In released elements compute the retained forces directly in the Schur system.
+  const retainedMoment = 3 * bending * (bar.releaseI ? relativeJ : relativeI)
+  const bothReleased = bar.releaseI && bar.releaseJ
+  const released = bar.releaseI || bar.releaseJ
+  const shear = released ? (bothReleased ? 0 : retainedMoment / bar.length) : 2 * symmetric / bar.length
+  const elastic: FrameVector = [-axial, shear, bar.releaseI ? 0 : bar.releaseJ ? retainedMoment : symmetric + antisymmetric,
+    axial, -shear, bar.releaseJ ? 0 : bar.releaseI ? retainedMoment : symmetric - antisymmetric]
+  const endForces = frameVector(i => elastic[i]! - condensed[i]!)
   const field = { length: bar.length, EA: bar.E * bar.A, EI: bar.EI, loads, localDisplacements, endForces }
   const stations = new Set([0, bar.length])
   const jumps = new Set<number>()

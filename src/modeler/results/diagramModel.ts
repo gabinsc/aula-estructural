@@ -15,10 +15,12 @@ export const AVM_VIEWS = [
   { key: 'M', label: 'M · Momento' }, { key: 'combined', label: 'AVM · Combinada' }, { key: 'deformed', label: 'Deformada' },
 ] as const
 export type AVMView = typeof AVM_VIEWS[number]['key']
+export type AVMPresentation = 'auto' | 'developed' | 'compact'
 export const EFFORT_UNIT = { N: 'kN', V: 'kN', M: 'kN·m' } as const
 export const BASE_HEIGHT = { N: 54, V: 76, M: 98 } as const
 export const DEFAULT_PREFERENCES = { view: 'model' as AVMView, loads: true, reactions: false, labels: true,
-  geometry: true, deformed: true, query: false, amplitude: 1, amplification: null as number | null }
+  geometry: true, deformed: true, query: false, amplitude: 1, amplification: null as number | null,
+  decimals: 2, extremes: true, ids: true, automaticLabels: true, presentation: 'auto' as AVMPresentation }
 export type AVMPreferences = typeof DEFAULT_PREFERENCES
 export const MAX_AMPLIFICATION = 1e12
 const ZERO_DISPLACEMENT = 1e-12
@@ -42,6 +44,7 @@ export interface DiagramModel {
   readonly maxima: Readonly<Record<Effort, number>>
   readonly deformationReference: number
   readonly modelSpan: number
+  readonly activeLoadIds: ReadonlySet<string>
   readonly orientations: ReadonlyMap<string, DevelopedMember>
   readonly joints: Readonly<Record<Effort, ReturnType<typeof jointJumps>>>
 }
@@ -90,7 +93,7 @@ export function buildDiagramModel(model: Structure, result: SolvedAnalysis): Dia
   const orientations = new Map(spans.flatMap(span => span.map(step => [step.member.id, step] as const)))
   const joints = { N: spans.flatMap(span => jointJumps(span, 'N', maxima.N)),
     V: spans.flatMap(span => jointJumps(span, 'V', maxima.V)), M: spans.flatMap(span => jointJumps(span, 'M', maxima.M)) }
-  return { members, maxima, deformationReference, modelSpan, orientations, joints }
+  return { members, maxima, deformationReference, modelSpan, activeLoadIds: new Set(result.loads.map(load => load.id)), orientations, joints }
 }
 
 export function deformationFactor(model: DiagramModel, manual: number | null) {

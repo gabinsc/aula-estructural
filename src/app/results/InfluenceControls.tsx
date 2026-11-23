@@ -4,6 +4,12 @@ import { radians } from '../../geometry/coordinates'
 import { parseNumber } from '../../modeler/format'
 import type { InfluenceOptions, InfluenceTarget } from '../../analysis/influence'
 import type { Axle, Train } from '../../analysis/influenceCurve'
+import type { InfluenceQueryTarget } from '../../analysis/methods'
+
+export type DisplayedInfluence = InfluenceQueryTarget & {
+  readonly name: string; readonly color: string; readonly scale: number; readonly visible: boolean
+}
+export const DEFAULT_LINE_COLORS = ['#087785', '#a33b21', '#6245b6', '#296344', '#926019', '#2856a0', '#aa2b72', '#3d5963']
 
 type TargetKind = 'reaction' | 'translation' | 'rotation' | 'effort'
 type AxleDraft = { readonly id: string; readonly force: string; readonly offset: string }
@@ -64,8 +70,9 @@ export function influenceOptions(draft: InfluenceDraft): InfluenceOptions | null
   return { bars, reversed: draft.reversed, target, direction: vector(angle), train }
 }
 
-export function InfluenceControls({ model, selection, draft, change }: {
+export function InfluenceControls({ model, selection, draft, change, addLine, lineCount }: {
   model: Structure; selection: readonly Selection[]; draft: InfluenceDraft; change: (value: InfluenceDraft) => void
+  addLine: (target: InfluenceTarget) => void; lineCount: number
 }) {
   const ids = selection.filter(item => item.kind === 'bar').map(item => item.id)
   const targets = draft.target === 'effort' ? model.bars
@@ -73,6 +80,7 @@ export function InfluenceControls({ model, selection, draft, change }: {
   const selected = selection.find(item => item.kind === (draft.target === 'effort' ? 'bar' : 'node') && targets.some(target => target.id === item.id))
   const edit = (patch: Partial<InfluenceDraft>) => change({ ...draft, ...patch })
   const geometry = draft.target === 'effort' ? loadBarGeometry(model, draft.id) : null
+  const options = influenceOptions(draft)
   function choose(id: string) {
     const length = draft.target === 'effort' ? loadBarGeometry(model, id)?.length : undefined
     edit({ id, station: length === undefined ? '' : String(length / 2) })
@@ -96,6 +104,8 @@ export function InfluenceControls({ model, selection, draft, change }: {
         <option value="">Seleccionar…</option>{targets.map(item => <option key={item.id} value={item.id}>{item.id}</option>)}
       </select></label>
       <button type="button" className="button secondary" disabled={!selected} onClick={() => { if (selected) choose(selected.id) }}>Usar objetivo CAD</button>
+      <button type="button" className="button secondary" disabled={!options || lineCount >= 8}
+        onClick={() => { if (options) addLine(options.target) }}>Agregar a líneas mostradas</button>
       {draft.target === 'effort' && <div className="result-controls">
         <label className="result-field">Estación del corte (m)<input inputMode="decimal" value={draft.station}
           onChange={event => edit({ station: event.target.value })} />

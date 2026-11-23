@@ -1,7 +1,7 @@
 import { supportRestraints } from '../domain/support'
 import type { Point } from '../geometry/coordinates'
 import type { EquivalentLoadTrace, FrameInteriorLoad, FrameVector, PreparedBar, PreparedComponent, PreparedFrame, PreparedModel, ReducedDof } from './contracts'
-import { frameEnergyModes, frameEquivalentLoad, frameVector, toGlobalVector, toLocalVector, transformFrameVector } from './frame'
+import { condenseFrameLoad, frameEnergyModes, frameEquivalentLoad, frameVector, toGlobalVector, toLocalVector, transformFrameVector } from './frame'
 import { compensatedSum } from './summation'
 
 /** Ensambla trabajo axial en coordenadas globales [uxi, uyi, uxj, uyj]. */
@@ -16,7 +16,9 @@ export function trussStiffness(bar: Pick<PreparedBar, 'unit' | 'axialStiffness'>
 function addOuterProduct(matrix: Float64Array, width: number, indices: readonly number[],
   direction: readonly number[], stiffness: number) {
   for (let i = 0; i < indices.length; i++) {
+    if (indices[i]! < 0) continue
     for (let j = i; j < indices.length; j++) {
+      if (indices[j]! < 0) continue
       const x = indices[i]!
       const y = indices[j]!
       const value = stiffness * direction[i]! * direction[j]!
@@ -27,9 +29,9 @@ function addOuterProduct(matrix: Float64Array, width: number, indices: readonly 
 }
 
 function globalFrameModes(bar: PreparedFrame) {
-  return frameEnergyModes(bar).map(({ axial, transverse, spin, stiffness, endSign }) => {
+  return frameEnergyModes(bar).map(({ axial, transverse, spinI, spinJ, stiffness }) => {
     const direction = toGlobalVector({ x: axial, y: transverse }, bar.unit)
-    return { stiffness, direction: [direction.x, direction.y, spin, -direction.x, -direction.y, endSign * spin] }
+    return { stiffness, direction: [direction.x, direction.y, spinI, -direction.x, -direction.y, spinJ] }
   })
 }
 
@@ -47,6 +49,7 @@ export function assembleModel(model: PreparedModel, includeTrace = false) {
   const forces: number[][] = Array.from({ length: size }, () => [])
   const memberLoads = new Map<string, FrameInteriorLoad[]>()
   const equivalentLocal = new Map<string, FrameVector>()
+  const condensedLocal = new Map<string, FrameVector>()
   const equivalentGlobal = new Map<string, FrameVector>()
   const equivalentLoads = new Map<string, EquivalentLoadTrace[]>()
   for (const load of model.loads) {
@@ -74,15 +77,19 @@ export function assembleModel(model: PreparedModel, includeTrace = false) {
     const vectors = original.map(load => frameEquivalentLoad(bar.length, load))
     const local = frameVector(i => compensatedSum(vectors.map(vector => vector[i]!)))
     equivalentLocal.set(bar.barId, local)
-    const global = transformFrameVector(local, bar.unit, toGlobalVector)
+    const condensed = condenseFrameLoad(bar, local)
+    const global = transformFrameVector(condensed, bar.unit, toGlobalVector)
     if (includeTrace) {
+      condensedLocal.set(bar.barId, condensed)
       equivalentGlobal.set(bar.barId, global)
-      equivalentLoads.set(bar.barId, original.map((load, i) => ({ loadId: load.id, local: vectors[i]!,
-        global: transformFrameVector(vectors[i]!, bar.unit, toGlobalVector) })))
+      equivalentLoads.set(bar.barId, original.map((load, i) => {
+        const local = condenseFrameLoad(bar, vectors[i]!)
+        return { loadId: load.id, local, global: transformFrameVector(local, bar.unit, toGlobalVector) }
+      }))
     }
-    for (const [i, index] of bar.dofIndices.entries()) forces[index]!.push(global[i]!)
+    for (const [i, index] of bar.dofIndices.entries()) if (index >= 0) forces[index]!.push(global[i]!)
   }
-  return { K, F: Float64Array.from(forces, compensatedSum), equivalentLocal, equivalentGlobal, equivalentLoads, memberLoads }
+  return { K, F: Float64Array.from(forces, compensatedSum), equivalentLocal, condensedLocal, equivalentGlobal, equivalentLoads, memberLoads }
 }
 
 export function rollerNormal(angle: number): Point {
@@ -135,10 +142,10 @@ export function reduceComponent(model: PreparedModel, component: PreparedCompone
     // grandes al evaluar una dirección casi libre.
     if (bar.kind === 'frame2d') {
       const projected = indices.map(index => toLocalVector(reducedDofs[index]!.direction, bar.unit))
-      for (const { axial, transverse, spin, stiffness, endSign } of frameEnergyModes(bar)) {
+      for (const { axial, transverse, spinI, spinJ, stiffness } of frameEnergyModes(bar)) {
         const direction = indices.map((index, i) => {
           const vector = projected[i]!
-          if (reducedDofs[index]!.axis === 'rz') return i < start.length ? spin : endSign * spin
+          if (reducedDofs[index]!.axis === 'rz') return i < start.length ? spinI : spinJ
           return (i < start.length ? 1 : -1) * (vector.x * axial + vector.y * transverse)
         })
         addOuterProduct(Kr, size, indices, direction, stiffness)

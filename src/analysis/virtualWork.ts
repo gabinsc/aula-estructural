@@ -81,6 +81,13 @@ export function solveVirtualWork(input: AnalysisInput, objective: VirtualObjecti
   if (!original.ok) return { ok: false, result: original }
   const { target } = objective
   let { motion } = objective
+  if (target.kind === 'section' && motion.kind === 'rotation') {
+    const bar = input.model.bars.find(item => item.id === target.id)
+    if (bar && ((bar.releaseI && target.s === 0) ||
+      (bar.releaseJ && target.s === loadBarGeometry(input.model, bar.id)?.length))) {
+      return methodFailure(input, 'El giro de extremo liberado es independiente del giro nodal. La carga unitaria de momento en esa cara todavía no está disponible.')
+    }
+  }
   if (motion.kind === 'translation') {
     const { x, y } = motion.direction
     const length = Math.hypot(x, y)

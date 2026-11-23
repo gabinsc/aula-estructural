@@ -10,11 +10,13 @@ import { TraceView } from './TraceView'
 import { ANALYSIS_STATUS } from './useAnalysis'
 import type { AnalysisState } from './useAnalysis'
 import type { SectionCut } from '../../modeler/results/diagramFields'
-import type { DiagramModel } from '../../modeler/results/diagramModel'
+import type { AVMPreferences, AVMPresentation, DiagramModel } from '../../modeler/results/diagramModel'
 import { CombinedDiagrams } from './CombinedDiagrams'
 import { MethodResults } from './MethodResults'
 import { InfluenceResults } from './InfluenceResults'
 import type { MovingPosition } from './InfluenceResults'
+import { formatResult } from '../../modeler/format'
+import type { DisplayedInfluence } from './InfluenceControls'
 
 type Success = Extract<AnalysisResult, { ok: true }>
 
@@ -85,7 +87,8 @@ function AnalysisSummary({ result }: { result: Success }) {
 }
 
 export function ResultsPanel({ state, missing, loads, selected, setSelected, learning, selection, select, close, cut, onCut,
-  combined, labels, expanded, toggleExpanded, onShowCut, model, methodControls, influenceMode, mobilePosition, onMobile }: {
+  combined, preferences, setPresentation, expanded, toggleExpanded, onShowCut, model, methodControls,
+  influenceMode, mobilePosition, onMobile, influenceLines, setInfluenceLines }: {
   state: AnalysisState
   missing: readonly AnalysisDiagnostic[]
   model: Structure
@@ -93,6 +96,8 @@ export function ResultsPanel({ state, missing, loads, selected, setSelected, lea
   influenceMode: boolean
   mobilePosition: MovingPosition
   onMobile: (position: MovingPosition) => void
+  influenceLines: readonly DisplayedInfluence[]
+  setInfluenceLines: (lines: readonly DisplayedInfluence[]) => void
   loads: readonly StructuralLoad[]
   selected: readonly string[] | null
   setSelected: (ids: readonly string[] | null) => void
@@ -103,15 +108,26 @@ export function ResultsPanel({ state, missing, loads, selected, setSelected, lea
   cut?: SectionCut
   onCut: (cut: SectionCut) => void
   combined?: DiagramModel
-  labels: boolean
+  preferences: AVMPreferences
+  setPresentation: (value: AVMPresentation) => void
   expanded: boolean
   toggleExpanded: () => void
   onShowCut: (cut: SectionCut) => void
 }) {
   const result = state.status === 'current' ? state.result : undefined
+  const { decimals } = preferences
   const diagnostics = state.status === 'failed' || state.status === 'incomplete' ? state.diagnostics
     : result?.diagnostics ?? missing
   const bar = selection.find(item => item.kind === 'bar')?.id
+  const forceRef = result?.reactions.reduce((max, item) => Math.max(max, Math.abs(item.x), Math.abs(item.y)), 0)
+  const momentRef = result?.reactions.reduce((max, item) => Math.max(max, Math.abs(item.moment ?? 0)), 0)
+  const displacementRef = result?.displacements.reduce((max, item) => Math.max(max, Math.abs(item.x), Math.abs(item.y)), 0)
+  const shown = (value: number | undefined, scale: number, reference?: number, digits = decimals) => {
+    const visual = formatResult(value, { scale, decimals: digits, reference })
+    return <span title={formatResult(value, { scale, exact: true })}>
+      {learning && visual !== '0' ? resultNumber(value, scale) : visual}
+    </span>
+  }
   return <aside id="analysis-results" className="results-panel" aria-label="Resultados del análisis">
     <header className="results-heading">
       <div><h2>Resultados</h2><p role="status" aria-label="Estado de análisis" data-analysis-status={state.status}>{ANALYSIS_STATUS[state.status]}</p></div>
@@ -138,18 +154,21 @@ export function ResultsPanel({ state, missing, loads, selected, setSelected, lea
         : 'Ejecuta Analizar estructura para obtener desplazamientos, reacciones y esfuerzos.'}</p>}
       <Diagnostics diagnostics={diagnostics} select={select} />
       {result && state.status === 'current' && state.detail?.kind === 'influence' &&
-        <InfluenceResults key={result.revision} detail={state.detail} learning={learning} select={select} position={mobilePosition} onPosition={onMobile} />}
+        <InfluenceResults key={result.revision} detail={state.detail} learning={learning} select={select} position={mobilePosition}
+          onPosition={onMobile} model={model} lines={influenceLines} changeLines={setInfluenceLines} decimals={decimals} />}
       {result && !influenceMode && <>
         {state.status === 'current' && state.detail && state.detail.kind !== 'influence' && <MethodResults key={result.revision} detail={state.detail} model={model}
           activeIds={result.loads.map(load => load.id)} learning={learning} select={select} selectedBar={bar} />}
-        {combined && <CombinedDiagrams diagram={combined} selectedId={bar} cut={cut} onCut={onCut} labels={labels} learning={learning} />}
+        {combined && <CombinedDiagrams diagram={combined} model={model} selectedId={bar} cut={cut} onCut={onCut}
+          preferences={preferences} learning={learning} setPresentation={setPresentation} />}
         <AnalysisSummary result={result} />
         <section className="result-section">
           <h3>Desplazamientos globales</h3>
           <ResultTable label="Desplazamientos nodales" headings={['Nudo', 'ux (mm)', 'uy (mm)', 'θz (rad)']}
             rows={result.displacements.map(item => ({ id: item.nodeId, cells: [
               <ResultLink onClick={() => select({ kind: 'node', id: item.nodeId })}>{item.nodeId}</ResultLink>,
-              resultNumber(item.x, 1000), resultNumber(item.y, 1000), resultNumber(item.rotation),
+              shown(item.x, 1000, displacementRef, Math.min(4, decimals + 1)),
+              shown(item.y, 1000, displacementRef, Math.min(4, decimals + 1)), shown(item.rotation, 1),
             ] }))} />
         </section>
         <section className="result-section">
@@ -157,10 +176,11 @@ export function ResultsPanel({ state, missing, loads, selected, setSelected, lea
           <ResultTable label="Reacciones de apoyo" headings={['Nudo', 'Rx (kN)', 'Ry (kN)', 'Mz (kN·m)']}
             rows={result.reactions.map(item => ({ id: item.nodeId, cells: [
               <ResultLink onClick={() => select({ kind: 'node', id: item.nodeId })}>{item.nodeId}</ResultLink>,
-              resultNumber(item.x, .001), resultNumber(item.y, .001), resultNumber(item.moment, .001),
+              shown(item.x, .001, forceRef), shown(item.y, .001, forceRef), shown(item.moment, .001, momentRef),
             ] }))} />
         </section>
-        <MemberResults bars={result.bars} selectedId={bar} select={id => select({ kind: 'bar', id })} cut={cut} onCut={onCut} />
+        <MemberResults bars={result.bars} selectedId={bar} select={id => select({ kind: 'bar', id })} cut={cut} onCut={onCut}
+          learning={learning} decimals={decimals} />
         {learning && <TraceView result={result} barId={bar} select={select} cut={cut} showCut={onShowCut} />}
       </>}
     </div>

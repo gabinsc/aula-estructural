@@ -45,7 +45,7 @@ export function ElementDetails({ element, local, full }: { element: Element; loc
     <p className="result-hint">E = {number(element.E)} Pa · A = {number(element.A)} m²{element.I !== undefined && ` · I = ${number(element.I)} m⁴`}</p>
     {full && <>
       <p className="result-hint">Orden local [{local.join(', ')}].</p>
-      <code className="lesson-formula">{formula}</code>
+      <code className="lesson-formula">{element.dofIndices.includes(-1) ? `Antes de condensar: ${formula}` : formula}</code>
       <p className="result-hint">EA/L = ({number(element.E)} × {number(element.A)}) / {number(element.length)} = {number(element.axialStiffness)} N/m.
         {element.EI !== undefined && ` EI = (${number(element.E)} × ${number(element.I)}) = ${number(element.EI)} N·m².`}</p>
     </>}
